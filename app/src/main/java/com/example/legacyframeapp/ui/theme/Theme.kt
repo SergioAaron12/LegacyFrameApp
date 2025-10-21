@@ -1,4 +1,4 @@
-package com.example.legacyframeapp.ui.theme
+package com.example.ui_navegacion.ui.theme
 
 import android.app.Activity
 import android.os.Build
@@ -34,7 +34,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun LegacyFrameAppTheme(
+fun UINavegacionTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,

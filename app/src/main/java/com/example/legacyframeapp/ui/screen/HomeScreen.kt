@@ -46,7 +46,7 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically // Centra vertical
             ) {
                 Text( // Título Home
-                    text = "Home",
+                    text = "LegacyFrame",
                     style = MaterialTheme.typography.headlineSmall, // Estilo título
                     fontWeight = FontWeight.SemiBold // Seminegrita
                 )

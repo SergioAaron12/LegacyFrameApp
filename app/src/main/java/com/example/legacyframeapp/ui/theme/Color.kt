@@ -1,4 +1,4 @@
-package com.example.legacyframeapp.ui.theme
+package com.example.ui_navegacion.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
