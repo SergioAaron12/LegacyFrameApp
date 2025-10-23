@@ -1,6 +1,5 @@
-package com.example.ui_navegacion.ui.theme
+package com.example.legacyframeapp.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme

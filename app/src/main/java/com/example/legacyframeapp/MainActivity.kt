@@ -4,37 +4,58 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+// Importa TU tema personalizado
+import com.example.legacyframeapp.ui.theme.UINavegacionTheme
+import androidx.compose.material3.Surface // Surface sigue siendo necesario
+import androidx.compose.material3.MaterialTheme // Necesario para acceder a colorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel // Para obtener el ViewModel
 import androidx.navigation.compose.rememberNavController
+// Importaciones de tu capa de datos y navegación
+import com.example.legacyframeapp.data.local.database.AppDatabase
+import com.example.legacyframeapp.data.repository.UserRepository
 import com.example.legacyframeapp.navegation.AppNavGraph
-
+import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
+import com.example.legacyframeapp.ui.viewmodel.AuthViewModelFactory
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge() // Habilita pantalla completa (edge-to-edge)
         setContent {
-            AppRoot()
+            AppRoot() // Llama a la función Composable raíz
         }
     }
 }
-/*
-* En Compose, Surface es un contenedor visual que viene de Material 3.Crea un bloque
-*  que puedes personalizar con color, forma, sombra (elevación).
-Sirve para aplicar un fondo (color, borde, elevación, forma) siguiendo las guías de diseño
-* de Material.
-Piensa en él como una “lona base” sobre la cual vas a pintar tu UI.
-* Si cambias el tema a dark mode, colorScheme.background
-* cambia automáticamente y el Surface pinta la pantalla con el nuevo color.
-* */
-@Composable // Indica que esta función dibuja UI
-fun AppRoot() { // Raíz de la app para separar responsabilidades
+
+// Composable raíz que configura el ViewModel y la Navegación
+@Composable
+fun AppRoot() {
+    // --- Inicialización del ViewModel ---
+    val context = LocalContext.current // Obtiene el contexto actual
+    val db = AppDatabase.getDatabase(context) // Obtiene instancia de la base de datos
+    val userDao = db.userDao() // Obtiene el DAO de usuario
+    val userRepository = UserRepository(userDao) // Crea el repositorio con el DAO
+    // Crea el ViewModel usando la Factory para inyectar el repositorio
+    val authViewModel: AuthViewModel = viewModel(
+        factory = AuthViewModelFactory(userRepository)
+    )
+    // ------------------------------------
+
     val navController = rememberNavController() // Controlador de navegación
-    MaterialTheme { // Provee colores/tipografías Material 3
-        Surface(color = MaterialTheme.colorScheme.background) { // Fondo general
-            AppNavGraph(navController = navController) // Carga el NavHost + Scaffold + Drawer
+
+    // --- APLICA TU TEMA PERSONALIZADO ---
+    // Reemplaza MaterialTheme por el nombre de tu tema (UINavegacionTheme)
+    UINavegacionTheme {
+        // Surface actúa como el contenedor base con el color de fondo del tema
+        Surface(color = MaterialTheme.colorScheme.background) {
+            // Carga el grafo de navegación, pasando el ViewModel
+            AppNavGraph(
+                navController = navController,
+                authViewModel = authViewModel // Pasa la instancia única del ViewModel
+            )
         }
     }
+    // ------------------------------------
 }

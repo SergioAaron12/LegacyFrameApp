@@ -10,39 +10,39 @@ import androidx.compose.material3.*                           // Material 3
 import androidx.compose.runtime.*                             // remember y Composable
 import androidx.compose.ui.Alignment                          // Alineaciones
 import androidx.compose.ui.Modifier                           // Modificador
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.*                       // KeyboardOptions/Types/Transformations
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp                            // DPs
 import androidx.lifecycle.compose.collectAsStateWithLifecycle // Observa StateFlow con lifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel         // Obtiene ViewModel
+import com.example.legacyframeapp.data.local.storage.UserPreferences
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel         // Nuestro ViewModel
 
-// 1 Agregamos las nuevas librerias
-// -------- NUEVOS IMPORTS DE ANIMACIÓN --------
-import androidx.compose.animation.AnimatedVisibility            // Animación de aparecer/desaparecer
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.expandVertically              // Efecto al aparecer
-import androidx.compose.animation.fadeIn                        // Efecto al aparecer (opacidad)
-import androidx.compose.animation.fadeOut                       // Efecto al desaparecer (opacidad)
-import androidx.compose.animation.shrinkVertically              // Efecto al desaparecer
-import androidx.compose.animation.core.animateFloatAsState      // Animación de float (opacidad)
-import androidx.compose.ui.draw.alpha
 
-// ---------------------------------------------
-
-
+//1 Lo primero que creamos en el archivo
 @Composable                                                  // Pantalla Login conectada al VM
 fun LoginScreenVm(
+    vm: AuthViewModel,                            // MOD: recibimos el VM desde NavGraph
     onLoginOkNavigateHome: () -> Unit,                       // Navega a Home cuando el login es exitoso
     onGoRegister: () -> Unit                                 // Navega a Registro
 ) {
-    val vm: AuthViewModel = viewModel()                      // Crea/obtiene VM
+
     val state by vm.login.collectAsStateWithLifecycle()      // Observa el StateFlow en tiempo real
 
-    if (state.success) {                                     // Si login fue exitoso…
-        vm.clearLoginResult()                                // Limpia banderas
-        onLoginOkNavigateHome()                              // Navega a Home
+    //contexto
+    val context = LocalContext.current
+    //manipulo mi Data Store
+    val userPrefs = remember { UserPreferences(context) }
+
+    LaunchedEffect(state.success) {
+        if (state.success) {                                     // Si login fue exitoso…
+            userPrefs.setLoggedIn(true)
+            vm.clearLoginResult()                                // Limpia banderas
+            onLoginOkNavigateHome()                              // Navega a Home
+        }
     }
+
 
     LoginScreen(                                             // Delegamos a UI presentacional
         email = state.email,                                 // Valor de email
@@ -60,10 +60,10 @@ fun LoginScreenVm(
 }
 
 
-
+//2 modificamos la funcion principal haciendo private y agregando variable y elementos dle fiormulario
 @Composable // Pantalla Login (solo navegación, sin formularios)
 private fun LoginScreen(
-
+    //3 Modificamos estos parametros
     email: String,                                           // Campo email
     pass: String,                                            // Campo contraseña
     emailError: String?,                                     // Error de email
@@ -77,17 +77,8 @@ private fun LoginScreen(
     onGoRegister: () -> Unit                                 // Acción ir a registro
 ) {
     val bg = MaterialTheme.colorScheme.secondaryContainer // Fondo distinto para contraste
-
+    //4 Agregamos la siguiente linea
     var showPass by remember { mutableStateOf(false) }        // Estado local para mostrar/ocultar contraseña
-
-    // -------- 2.- Animación de opacidad del botón según loading --------
-    // Si isSubmitting=true → opacidad 0.6f, si no → 1f (transición suave)
-    val buttonAlpha by animateFloatAsState(
-        targetValue = if (isSubmitting) 0.6f else 1f,
-        label = "alphaLoginButton"
-    )
-    // ----------------------------------------------------------------
-
 
     Box(
         modifier = Modifier
@@ -97,10 +88,8 @@ private fun LoginScreen(
         contentAlignment = Alignment.Center // Centro
     ) {
         Column(
-
-            modifier = Modifier.fillMaxWidth()
-                // -------- 3.- Ajuste suave del tamaño cuando aparecen/desaparecen errores --------
-                .animateContentSize(),              // Ancho completo
+            //5 Anexamos el modificador
+            modifier = Modifier.fillMaxWidth(),              // Ancho completo
             horizontalAlignment = Alignment.CenterHorizontally // Centrado horizontal
         ) {
             Text(
@@ -115,7 +104,7 @@ private fun LoginScreen(
             )
             Spacer(Modifier.height(20.dp)) // Separación
 
-
+            //5 Borramos los elementos anteriores y comenzamos a agregar los elementos dle formulario
 // ---------- EMAIL ----------
             OutlinedTextField(
                 value = email,                               // Valor actual
@@ -128,20 +117,10 @@ private fun LoginScreen(
                 ),
                 modifier = Modifier.fillMaxWidth()           // Ancho completo
             )
-            // -------- 4.- MOSTRAR ERROR CON ANIMACIÓN SUAVE --------
-            AnimatedVisibility(
-                visible = emailError != null,                  // Visible si hay error
-                enter = fadeIn() + expandVertically(),         // Aparece con fade + expansión
-                exit = fadeOut() + shrinkVertically()          // Desaparece con fade + contracción
-            ) {
-                if (emailError != null) {                        // Muestra mensaje si hay error
-                    Text(
-                        emailError,
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                }
+            if (emailError != null) {                        // Muestra mensaje si hay error
+                Text(emailError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
             }
+
             Spacer(Modifier.height(8.dp))                    // Espacio
 
             // ---------- PASSWORD (oculta por defecto) ----------
@@ -168,12 +147,11 @@ private fun LoginScreen(
 
             Spacer(Modifier.height(16.dp))                   // Espacio
 
-            // ----------5.-  BOTÓN ENTRAR con opacidad animada ----------
+            // ---------- BOTÓN ENTRAR ----------
             Button(
                 onClick = onSubmit,                          // Envía login
                 enabled = canSubmit && !isSubmitting,        // Solo si válido y no cargando
-                modifier = Modifier.fillMaxWidth()
-                    .alpha(buttonAlpha)                        // Aplica opacidad animada al botón// Ancho completo
+                modifier = Modifier.fillMaxWidth()           // Ancho completo
             ) {
                 if (isSubmitting) {                          // UI de carga
                     CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))

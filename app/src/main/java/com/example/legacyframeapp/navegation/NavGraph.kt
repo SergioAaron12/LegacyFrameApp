@@ -20,9 +20,12 @@ import com.example.legacyframeapp.ui.components.defaultDrawerItems // Ítems por
 import com.example.legacyframeapp.ui.screen.HomeScreen // Pantalla Home
 import com.example.legacyframeapp.ui.screen.LoginScreenVm // Pantalla Login
 import com.example.legacyframeapp.ui.screen.RegisterScreenVm // Pantalla Registro
+import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
 @Composable // Gráfico de navegación + Drawer + Scaffold
-fun AppNavGraph(navController: NavHostController) { // Recibe el controlador
+fun AppNavGraph(navController: NavHostController,
+                authViewModel: AuthViewModel        // <-- 1.- NUEVO: recibimos el VM inyectado desde MainActivity
+) { // Recibe el controlador
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed) // Estado del drawer
     val scope = rememberCoroutineScope() // Necesario para abrir/cerrar drawer
@@ -79,6 +82,7 @@ fun AppNavGraph(navController: NavHostController) { // Recibe el controlador
                     //1 modificamos el acceso a la pagina
                     // Usamos la versión con ViewModel (LoginScreenVm) para formularios/validación en tiempo real
                     LoginScreenVm(
+                        vm = authViewModel,            // <-- NUEVO: pasamos VM inyectado
                         onLoginOkNavigateHome = goHome,            // Si el VM marca success=true, navegamos a Home
                         onGoRegister = goRegister                  // Enlace para ir a la pantalla de Registro
                     )
@@ -87,6 +91,7 @@ fun AppNavGraph(navController: NavHostController) { // Recibe el controlador
                     //2 modificamos el acceso a la pagina
                     // Usamos la versión con ViewModel (RegisterScreenVm) para formularios/validación en tiempo real
                     RegisterScreenVm(
+                        vm = authViewModel,            // pasamos VM inyectado
                         onRegisteredNavigateLogin = goLogin,       // Si el VM marca success=true, volvemos a Login
                         onGoLogin = goLogin                        // Botón alternativo para ir a Login
                     )
