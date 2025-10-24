@@ -1,4 +1,12 @@
-*.iml
+caches/
+app/build/
+**/.gradle/
+/.idea/workspace.xml
+/.idea/misc.xml
+/.idea/gradle.xml
+/.idea/*
+.DS_Store
+*.iml*.iml
 .gradle
 /local.properties
 /.idea/caches
