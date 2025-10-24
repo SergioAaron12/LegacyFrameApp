@@ -2,8 +2,11 @@ package com.example.legacyframeapp.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu // Solo necesitamos el ícono de Menú
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -15,7 +18,9 @@ import androidx.compose.ui.text.style.TextOverflow
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppTopBar(
-    onOpenDrawer: () -> Unit // La única acción que necesita
+    onOpenDrawer: () -> Unit, // La única acción que necesita
+    cartCount: Int,
+    onOpenCart: () -> Unit
 ) {
     CenterAlignedTopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
@@ -38,7 +43,25 @@ fun AppTopBar(
                     contentDescription = "Abrir menú de navegación"
                 )
             }
+        },
+        actions = {
+            IconButton(onClick = onOpenCart) {
+                if (cartCount > 0) {
+                    BadgedBox(badge = { Badge { Text(cartCount.toString()) } }) {
+                        Icon(
+                            imageVector = Icons.Filled.ShoppingCart,
+                            contentDescription = "Carrito",
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.ShoppingCart,
+                        contentDescription = "Carrito",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
         }
-        // Nota: Ya no hay 'actions' (los 3 puntitos, etc.)
     )
 }

@@ -11,8 +11,8 @@ data class ProductEntity(
     val description: String,
     val price: Int, // Usamos Int para CLP (ej: 25000)
 
-    // Esta es la columna CLAVE que discutimos.
-    // Aquí guardaremos la ruta al archivo de imagen en el teléfono.
-    // Ej: "moldura_1701393.jpg"
+    val category: String = "otros", // grecas, rusticas, naturales, nativas, finger-joint
+
+    // Aquí guardaremos la ruta o nombre del recurso para la imagen
     val imagePath: String
 )

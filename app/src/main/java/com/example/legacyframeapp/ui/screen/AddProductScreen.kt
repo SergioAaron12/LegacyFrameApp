@@ -27,12 +27,16 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 
 // -----------------------------------------------------------------
 // 1. Composable "Stateful" (Conectado al ViewModel)
@@ -43,6 +47,15 @@ fun AddProductScreenVm(
     onNavigateBack: () -> Unit // Acción para volver atrás
 ) {
     val state by vm.addProduct.collectAsStateWithLifecycle()
+
+    // Photo Picker (galería)
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            vm.onAddProductChange(imageUri = uri.toString())
+        }
+    }
 
     // Cuando 'saveSuccess' se vuelve true, resetea el estado y vuelve atrás
     LaunchedEffect(state.saveSuccess) {
@@ -67,8 +80,7 @@ fun AddProductScreenVm(
         onDescriptionChange = { vm.onAddProductChange(description = it) },
         onPriceChange = { vm.onAddProductChange(price = it) },
         onSelectImage = {
-            // TODO: Lanzar el selector de Galería/Cámara
-            println("Click: Seleccionar Imagen")
+            pickImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         },
         onSubmit = { vm.saveProduct() },
         onBack = onNavigateBack // Pasa la acción de "volver"

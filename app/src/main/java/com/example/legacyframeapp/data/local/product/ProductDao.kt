@@ -15,6 +15,15 @@ interface ProductDao {
     @Query("SELECT * FROM products ORDER BY name ASC")
     fun getAllProducts(): Flow<List<ProductEntity>>
 
+    @Query("SELECT * FROM products WHERE category = :category ORDER BY name ASC")
+    fun getProductsByCategory(category: String): Flow<List<ProductEntity>>
+
+    @Query("SELECT DISTINCT category FROM products ORDER BY category ASC")
+    suspend fun getAllCategories(): List<String>
+
+    @Query("SELECT COUNT(*) FROM products")
+    suspend fun count(): Int
+
     // Funciones para el Admin (CRUD)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

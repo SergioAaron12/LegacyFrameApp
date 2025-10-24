@@ -13,6 +13,13 @@ class ProductRepository(
         return productDao.getAllProducts()
     }
 
+    fun getByCategory(category: String): Flow<List<ProductEntity>> =
+        productDao.getProductsByCategory(category)
+
+    suspend fun getAllCategories(): List<String> = productDao.getAllCategories()
+
+    suspend fun count(): Int = productDao.count()
+
     // --- Funciones de Admin ---
 
     suspend fun insert(product: ProductEntity) {

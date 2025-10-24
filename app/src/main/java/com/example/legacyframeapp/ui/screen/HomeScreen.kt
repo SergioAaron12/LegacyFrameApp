@@ -10,6 +10,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -23,11 +26,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.legacyframeapp.R
+import com.example.legacyframeapp.data.local.product.ProductEntity
+import coil.compose.AsyncImage
+import java.io.File
 
 
 
 // Data classes para simular los datos de tu web
-data class ProductHome(val imageResId: Int, val title: String, val description: String)
+data class ProductHome(val title: String, val price: Int, val imageResId: Int? = null, val imagePath: String? = null)
 data class ServiceHome(val icon: String, val title: String, val description: String)
 
 @Composable
@@ -35,15 +41,22 @@ fun HomeScreen(
     // Funciones de navegación pasadas desde NavGraph
     onGoLogin: () -> Unit,
     onGoRegister: () -> Unit,
-    // Añadir más navegaciones aquí
+    onGoMolduras: () -> Unit,
+    onGoCuadros: () -> Unit,
+    onGoContact: () -> Unit,
+    products: List<ProductEntity>
 ) {
-    // Datos de ejemplo simulando tu Home.tsx/html
-    val popularProducts = listOf(
-
-        ProductHome(R.drawable.moldura1, "I 09 Greca ZO", "Moldura greca clásica con diseño tradicional ZO, perfecta para fotografías familiares y documentos."),
-        ProductHome(R.drawable.moldura2, "Rústica de Campo", "Acabado natural que resalta la veta de la madera, ideal para ambientes cálidos."),
-        ProductHome(R.drawable.moldura3, "Nativa Alerce", "Calidez y elegancia con madera nativa de primera calidad, acabado premium.")
-    )
+    // Destacados: toma hasta 6 productos del catálogo
+    val popularProducts: List<ProductHome> = products.take(6).map { p ->
+        // Si imagePath apunta a drawables que ya tenemos, asigna id; de lo contrario, null
+        val resId = when (p.imagePath) {
+            "moldura1" -> R.drawable.moldura1
+            "moldura2" -> R.drawable.moldura2
+            "moldura3" -> R.drawable.moldura3
+            else -> null
+        }
+        ProductHome(title = p.name, price = p.price, imageResId = resId, imagePath = p.imagePath)
+    }
     val services = listOf(
         ServiceHome("🖼️", "Enmarcación Personalizada", "Creamos marcos a medida para cualquier obra."),
         ServiceHome("🚚", "Despacho a Domicilio", "Entregamos tus cuadros directamente en tu hogar."),
@@ -108,7 +121,17 @@ fun HomeScreen(
         // Espacio para compensar la altura de la tarjeta superpuesta
         item { Spacer(modifier = Modifier.height(76.dp)) } // Ajusta si es necesario
 
-        // --- 2. Productos Populares ---
+        // --- 2. Accesos rápidos ---
+        item {
+            Spacer(modifier = Modifier.height(8.dp))
+            QuickActionsRow(
+                onGoMolduras = onGoMolduras,
+                onGoCuadros = onGoCuadros,
+                onGoContact = onGoContact
+            )
+        }
+
+        // --- 3. Productos Populares ---
         item {
             SectionTitle("Nuestros Productos Más Populares") // Título reutilizable
             // Fila horizontal que permite scroll si hay muchos productos
@@ -123,7 +146,7 @@ fun HomeScreen(
             }
         }
 
-        // --- 3. Nuestros Servicios ---
+        // --- 4. Nuestros Servicios ---
         item {
             Spacer(modifier = Modifier.height(32.dp)) // Espacio antes de la sección
             SectionTitle("Nuestros Servicios") // Título reutilizable
@@ -139,7 +162,7 @@ fun HomeScreen(
             }
         }
 
-        // --- 4. Call to Action (Llamado a la acción) ---
+        // --- 5. Call to Action (Llamado a la acción) ---
         item {
             Spacer(modifier = Modifier.height(40.dp)) // Espacio antes de la sección
             // Caja con fondo de color primario
@@ -165,8 +188,7 @@ fun HomeScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         // Botón Contactar (Fondo blanco, texto primario)
                         Button(
-                            // onClick = onGoContacto, // Necesitarías añadir esta navegación
-                            onClick = {}, // Acción de placeholder por ahora
+                            onClick = onGoContact,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.White, // Fondo blanco
                                 contentColor = Color(0xFF8B5C2A) // Texto color primario
@@ -234,17 +256,53 @@ fun ProductCardHome(product: ProductHome) {
         shape = RoundedCornerShape(12.dp) // Bordes redondeados
     ) {
         Column {
-            Image(
-                // =====> AQUÍ VA TU IMAGEN DE PRODUCTO <=====
-                painter = painterResource(id = product.imageResId), // Usa la ID de la imagen del producto
-                contentDescription = product.title,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(130.dp) // Altura fija para la imagen
-                    // Redondea solo las esquinas superiores
-                    .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
-                contentScale = ContentScale.Crop // Cubre el espacio
-            )
+            when {
+                product.imageResId != null -> {
+                    Image(
+                        painter = painterResource(id = product.imageResId),
+                        contentDescription = product.title,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp)
+                            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                product.imagePath?.startsWith("http") == true -> {
+                    AsyncImage(
+                        model = product.imagePath,
+                        contentDescription = product.title,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp)
+                            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                product.imagePath?.let { File(it) }?.exists() == true -> {
+                    AsyncImage(
+                        model = File(product.imagePath!!),
+                        contentDescription = product.title,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp)
+                            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                else -> {
+                    // Placeholder cuando no hay imagen disponible
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(130.dp)
+                            .background(Color(0xFFEFEFEF)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Photo, contentDescription = null, tint = Color.Gray)
+                    }
+                }
+            }
             // Contenido de texto de la tarjeta
             Column(Modifier.padding(12.dp)) {
                 Text(
@@ -254,14 +312,36 @@ fun ProductCardHome(product: ProductHome) {
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    product.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 3, // Limita la descripción a 3 líneas
-                    color = Color.Gray // Texto gris claro
-                )
+                Text("$ ${product.price}", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF8B5C2A))
             }
         }
+    }
+}
+
+@Composable
+private fun QuickActionsRow(
+    onGoMolduras: () -> Unit,
+    onGoCuadros: () -> Unit,
+    onGoContact: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        ActionChip(icon = Icons.Default.Category, label = "Molduras", onClick = onGoMolduras)
+        ActionChip(icon = Icons.Default.Collections, label = "Cuadros", onClick = onGoCuadros)
+        ActionChip(icon = Icons.Default.Call, label = "Contacto", onClick = onGoContact)
+    }
+}
+
+@Composable
+private fun ActionChip(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    OutlinedButton(onClick = onClick) {
+        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(label)
     }
 }
 

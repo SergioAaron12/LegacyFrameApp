@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle // Para el estado
 import com.example.legacyframeapp.ui.components.loggedInDrawerItems // NUEVO
 import com.example.legacyframeapp.ui.components.loggedOutDrawerItems // NUEVO
 import com.example.legacyframeapp.ui.screen.MoldurasScreenVm // NUEVO
+import com.example.legacyframeapp.ui.screen.CuadrosScreenVm // NUEVO
 
 import com.example.legacyframeapp.ui.components.AppTopBar // Barra superior
 import com.example.legacyframeapp.ui.components.AppDrawer // Drawer composable
@@ -26,6 +27,8 @@ import com.example.legacyframeapp.ui.screen.LoginScreenVm // Pantalla Login
 import com.example.legacyframeapp.ui.screen.RegisterScreenVm // Pantalla Registro
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import com.example.legacyframeapp.ui.screen.AddProductScreenVm
+import com.example.legacyframeapp.ui.screen.CartScreenVm
+import com.example.legacyframeapp.ui.screen.ContactScreen
 
 @Composable
 fun AppNavGraph(
@@ -55,6 +58,15 @@ fun AppNavGraph(
     // --- NUEVAS ACCIONES ---
     val goMolduras: () -> Unit = {
         navController.navigate(Route.Molduras.path) { launchSingleTop = true }
+    }
+    val goCuadros: () -> Unit = {
+        navController.navigate(Route.Cuadros.path) { launchSingleTop = true }
+    }
+    val goCart: () -> Unit = {
+        navController.navigate(Route.Cart.path) { launchSingleTop = true }
+    }
+    val goContact: () -> Unit = {
+        navController.navigate(Route.Contact.path) { launchSingleTop = true }
     }
     // --- ACCIÓN PARA VOLVER ATRÁS ---
     val goBack: () -> Unit = {
@@ -94,6 +106,9 @@ fun AppNavGraph(
                     items = loggedInDrawerItems(
                         onHome = { closeDrawer(); goHome() },
                         onMolduras = { closeDrawer(); goMolduras() },
+                        onCuadros = { closeDrawer(); goCuadros() },
+                        onCart = { closeDrawer(); goCart() },
+                        onContact = { closeDrawer(); goContact() },
                         onLogout = { closeDrawer(); doLogout() }
                     )
                 )
@@ -104,7 +119,11 @@ fun AppNavGraph(
                     items = loggedOutDrawerItems(
                         onHome = { closeDrawer(); goHome() },
                         onLogin = { closeDrawer(); goLogin() },
-                        onRegister = { closeDrawer(); goRegister() }
+                        onRegister = { closeDrawer(); goRegister() },
+                        onCuadros = { closeDrawer(); goCuadros() },
+                        onMolduras = { closeDrawer(); goMolduras() },
+                        onCart = { closeDrawer(); goCart() },
+                        onContact = { closeDrawer(); goContact() }
                     )
                 )
             }
@@ -114,8 +133,11 @@ fun AppNavGraph(
         Scaffold(
             // --- TOP BAR SIMPLIFICADA ---
             topBar = {
+                val cartCount by authViewModel.cartCount.collectAsStateWithLifecycle()
                 AppTopBar(
-                    onOpenDrawer = openDrawer // Solo pasa la acción de abrir
+                    onOpenDrawer = openDrawer,
+                    cartCount = cartCount,
+                    onOpenCart = goCart
                 )
             }
         ) { innerPadding ->
@@ -125,9 +147,14 @@ fun AppNavGraph(
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable(Route.Home.path) {
+                    val products by authViewModel.products.collectAsStateWithLifecycle()
                     HomeScreen(
                         onGoLogin = goLogin,
-                        onGoRegister = goRegister
+                        onGoRegister = goRegister,
+                        onGoMolduras = goMolduras,
+                        onGoCuadros = goCuadros,
+                        onGoContact = goContact,
+                        products = products
                     )
                 }
                 composable(Route.Login.path) {
@@ -150,6 +177,24 @@ fun AppNavGraph(
                         vm = authViewModel,
                         onAddProduct = goAddProduct // <--- PASAR LA ACCIÓN
                     )
+                }
+
+                composable(Route.Cuadros.path) {
+                    CuadrosScreenVm(
+                        vm = authViewModel,
+                        onAddCuadro = { /* TODO: crear pantalla de añadir cuadro */ }
+                    )
+                }
+
+                composable(Route.Cart.path) {
+                    CartScreenVm(
+                        vm = authViewModel,
+                        onNavigateBack = goBack
+                    )
+                }
+
+                composable(Route.Contact.path) {
+                    ContactScreen()
                 }
 
                 composable(Route.AddProduct.path) {

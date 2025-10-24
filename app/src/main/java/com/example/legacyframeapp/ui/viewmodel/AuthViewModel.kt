@@ -10,12 +10,25 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 // --- AÑADIR IMPORTS ---
 import com.example.legacyframeapp.data.repository.ProductRepository
+import com.example.legacyframeapp.data.repository.CartRepository
 import com.example.legacyframeapp.data.local.product.ProductEntity
 import com.example.legacyframeapp.data.local.user.UserEntity
+import com.example.legacyframeapp.data.local.cart.CartItemEntity
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
 import com.example.legacyframeapp.domain.validation.validateNameLettersOnly // Usaremos este validador
 import com.example.legacyframeapp.domain.validation.validatePhoneDigitsOnly // Lo usaremos para el precio
+// --- IMPORTS PARA CUADROS ---
+import com.example.legacyframeapp.data.repository.CuadroRepository
+import com.example.legacyframeapp.data.local.cuadro.CuadroEntity
+import android.content.Context
+import java.io.File
+import java.io.FileOutputStream
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.first
 
 // --- ESTADOS DE UI ---
 
@@ -80,7 +93,9 @@ data class AddProductUiState(
 
 class AuthViewModel(
     private val userRepository: UserRepository,
-    private val productRepository: ProductRepository
+    private val productRepository: ProductRepository,
+    private val cuadroRepository: CuadroRepository,
+    private val cartRepository: CartRepository
 ) : ViewModel() {
 
     // Flujos de estado
@@ -102,8 +117,104 @@ class AuthViewModel(
                 initialValue = emptyList() // Empezar con lista vacía
             )
 
+    val cuadros: StateFlow<List<CuadroEntity>> =
+        cuadroRepository.getAllCuadros()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000L),
+                initialValue = emptyList()
+            )
+
+    // --- Carrito ---
+    val cartItems: StateFlow<List<CartItemEntity>> =
+        cartRepository.items()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000L),
+                initialValue = emptyList()
+            )
+
+    val cartTotal: StateFlow<Int> =
+        cartRepository.total()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000L),
+                initialValue = 0
+            )
+
+    val cartCount: StateFlow<Int> =
+        cartRepository.count()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000L),
+                initialValue = 0
+            )
+
     private val _addProduct = MutableStateFlow(AddProductUiState())
     val addProduct: StateFlow<AddProductUiState> = _addProduct
+
+    init {
+        // Si la BD ya existía sin semillas, asegura productos por defecto
+        viewModelScope.launch(Dispatchers.IO) {
+            ensureDefaultProductsSeed()
+        }
+    }
+
+    private suspend fun ensureDefaultProductsSeed() {
+        try {
+            if (productRepository.count() == 0) {
+                // Semillas base (coinciden con molduras.html)
+                val defaults = listOf(
+                    ProductEntity(name = "I 09 greca zo", description = "Elegante greca decorativa con diseño tradicional ZO.", price = 37500, category = "grecas", imagePath = "moldura1"),
+                    ProductEntity(name = "I 09 greca corazón", description = "Greca con motivo de corazón, perfecta para marcos románticos.", price = 40000, category = "grecas", imagePath = "moldura2"),
+                    ProductEntity(name = "P 15 greca LA oro", description = "Greca con acabado dorado, elegante y sofisticada.", price = 24000, category = "grecas", imagePath = "moldura3"),
+                    ProductEntity(name = "P 15 greca LA plata", description = "Greca con acabado plateado, moderna y elegante.", price = 57500, category = "grecas", imagePath = "https://raw.githubusercontent.com/SergioAaron12/Legacy-Frames/main/img/moldura4.jpg"),
+                    ProductEntity(name = "H 20 albayalde azul", description = "Moldura rústica con acabado albayalde azul, ideal para ambientes campestres.", price = 70000, category = "rusticas", imagePath = "https://raw.githubusercontent.com/SergioAaron12/Legacy-Frames/main/img/rustica1.jpg"),
+                    ProductEntity(name = "B-10 t/alerce", description = "Moldura natural de alerce con textura original de la madera.", price = 37500, category = "naturales", imagePath = "https://raw.githubusercontent.com/SergioAaron12/Legacy-Frames/main/img/naturales1.jpg"),
+                    ProductEntity(name = "J-16", description = "Moldura de madera nativa chilena, resistente y de gran calidad.", price = 41500, category = "nativas", imagePath = "https://raw.githubusercontent.com/SergioAaron12/Legacy-Frames/main/img/nativas1.jpg"),
+                    ProductEntity(name = "P-12 Finger Joint", description = "Moldura finger joint de alta calidad con unión invisible.", price = 27750, category = "finger-joint", imagePath = "https://raw.githubusercontent.com/SergioAaron12/Legacy-Frames/main/img/finger_joint1.jpg")
+                )
+                defaults.forEach { productRepository.insert(it) }
+            }
+        } catch (_: Exception) { }
+    }
+
+    // Prefetch de imágenes remotas a almacenamiento local y actualización de DB
+    fun prefetchProductImages(appContext: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val current = productRepository.getAllProducts().first()
+                current.forEach { p ->
+                    if (p.imagePath.startsWith("http")) {
+                        val safeName = sanitizeFileName(p.name.ifBlank { p.imagePath.hashCode().toString() }) + ".jpg"
+                        val outFile = File(appContext.filesDir, safeName)
+                        val ok = downloadToFile(p.imagePath, outFile)
+                        if (ok) {
+                            productRepository.update(p.copy(imagePath = outFile.absolutePath))
+                        }
+                    }
+                }
+            } catch (_: Exception) { }
+        }
+    }
+
+    private suspend fun downloadToFile(url: String, dest: File): Boolean = withContext(Dispatchers.IO) {
+        return@withContext try {
+            URL(url).openStream().use { input ->
+                FileOutputStream(dest).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun sanitizeFileName(name: String): String =
+        name.lowercase()
+            .replace(" ", "_")
+            .replace(Regex("[^a-z0-9._-]"), "")
 
     // --- Funciones on...Change para Login (Sin cambios) ---
     fun onLoginEmailChange(email: String) {
@@ -237,7 +348,8 @@ class AuthViewModel(
     fun onAddProductChange(
         name: String = _addProduct.value.name,
         description: String = _addProduct.value.description,
-        price: String = _addProduct.value.price
+        price: String = _addProduct.value.price,
+        imageUri: String = _addProduct.value.imageUri
     ) {
         // Validaciones en tiempo real
         val nameError = if(name.isBlank()) "El nombre es obligatorio" else null
@@ -248,6 +360,7 @@ class AuthViewModel(
                 name = name,
                 description = description,
                 price = price,
+                imageUri = imageUri,
                 nameError = nameError,
                 priceError = priceError,
                 canSubmit = nameError == null && priceError == null && !it.isSaving
@@ -263,12 +376,11 @@ class AuthViewModel(
         // Doble chequeo por si acaso
         if (!s.canSubmit || s.isSaving) return
 
-        // --- TODO: Validación de Imagen ---
-        // if (s.imageUri.isBlank()) {
-        //     _addProduct.update { it.copy(imageError = "Debe seleccionar una imagen") }
-        //     return
-        // }
-        // ------------------------------------
+        // Validación de Imagen (requerida para admin)
+        if (s.imageUri.isBlank()) {
+            _addProduct.update { it.copy(imageError = "Debe seleccionar una imagen de la galería") }
+            return
+        }
 
         _addProduct.update { it.copy(isSaving = true, errorMsg = null) }
 
@@ -277,12 +389,9 @@ class AuthViewModel(
                 // Convertimos el precio (que es String) a Int
                 val priceInt = s.price.toInt()
 
-                // --- TODO: Procesamiento de Imagen ---
-                // Aquí es donde copiaremos la imagen de s.imageUri al almacenamiento
-                // interno y obtendremos el "imagePath" real.
-                // Por AHORA, usaremos un placeholder.
-                val finalImagePath = "" // <-- Placeholder
-                // ------------------------------------
+                // Para simplificar, guardamos el URI de la galería como imagePath
+                // (El Photo Picker provee acceso sin permisos adicionales en Android 13+)
+                val finalImagePath = s.imageUri
 
                 val newProduct = ProductEntity(
                     name = s.name.trim(),
@@ -311,7 +420,53 @@ class AuthViewModel(
     fun clearAddProductState() {
         _addProduct.update { AddProductUiState() } // Resetea al estado inicial
     }
+    
+    // --- Admin: Eliminar producto ---
+    fun deleteProduct(product: ProductEntity) {
+        viewModelScope.launch {
+            productRepository.delete(product)
+        }
+    }
     // ------------------------------------
+
+    // ------------------------------------
+    // Carrito API
+    // ------------------------------------
+    fun addProductToCart(p: ProductEntity) {
+        viewModelScope.launch {
+            cartRepository.addOrIncrement(
+                type = "product",
+                refId = p.id,
+                name = p.name,
+                price = p.price,
+                imagePath = p.imagePath
+            )
+        }
+    }
+
+    fun addCuadroToCart(c: CuadroEntity) {
+        viewModelScope.launch {
+            cartRepository.addOrIncrement(
+                type = "cuadro",
+                refId = c.id,
+                name = c.title,
+                price = c.price,
+                imagePath = c.imagePath
+            )
+        }
+    }
+
+    fun updateCartQuantity(item: CartItemEntity, newQty: Int) {
+        viewModelScope.launch { cartRepository.updateQuantity(item, newQty) }
+    }
+
+    fun removeFromCart(item: CartItemEntity) {
+        viewModelScope.launch { cartRepository.remove(item) }
+    }
+
+    fun clearCart() {
+        viewModelScope.launch { cartRepository.clear() }
+    }
 
     // --- Login con Repositorio (Sin cambios) ---
     fun submitLogin() {
