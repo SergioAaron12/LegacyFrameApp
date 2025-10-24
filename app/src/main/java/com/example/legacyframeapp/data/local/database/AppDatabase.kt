@@ -1,29 +1,40 @@
-package com.example.legacyframeapp.data.local.database
+package com.example.legacyframeapp.data.local.database // Tu paquete original
 
 import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+// --- ¡AÑADIR ESTOS IMPORTS! ---
+import com.example.legacyframeapp.data.local.product.ProductDao
+import com.example.legacyframeapp.data.local.product.ProductEntity
+// -------------------------------
 import com.example.legacyframeapp.data.local.user.UserDao
 import com.example.legacyframeapp.data.local.user.UserEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-// --- Constantes para IDs de Rol y Estado  ---
+// --- (Tus constantes ADMIN_ROL_ID, etc. van aquí) ---
 private const val ADMIN_ROL_ID = 1
 private const val ACTIVO_ESTADO_ID = 1
-// ------------------------------------------------------------------------------------
+// ----------------------------------------------------
 
 @Database(
-    entities = [UserEntity::class],
-    version = 1,
+    entities = [
+        UserEntity::class,
+        ProductEntity::class  // <--- 1. ASEGÚRATE DE AÑADIR ESTO
+    ],
+    version = 2,              // <--- 2. ASEGÚRATE DE CAMBIAR LA VERSIÓN A 2
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
+
+    // --- 3. ESTA LÍNEA ES LA QUE TE FALTA Y CAUSA EL ERROR ---
+    abstract fun productDao(): ProductDao
+    // ---------------------------------------------------------
 
     companion object {
         @Volatile
@@ -37,37 +48,31 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     DB_NAME
                 )
-                    // --- REINTRODUCIMOS EL CALLBACK PARA INSERTAR EL ADMIN ---
                     .addCallback(object : Callback() {
+                        // ... (Tu callback para crear el Admin sigue igual aquí) ...
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)
-                            // Usamos una corrutina para insertar en un hilo separado
+                            // Inserta el usuario admin en un hilo separado
                             CoroutineScope(Dispatchers.IO).launch {
                                 val dao = getDatabase(context).userDao()
-
-                                // Verifica si la tabla está vacía antes de insertar
-                                if (dao.count() == 0) {
-                                    // --- DEFINE AQUÍ TU USUARIO ADMINISTRADOR ---
+                                if (dao.count() == 0) { // Solo si la BD está vacía
                                     val adminUser = UserEntity(
                                         nombre = "Admin",
-                                        apellido = "Legacy", // Opcional
+                                        apellido = "Legacy",
                                         phone = 12345678,
-                                        rut = "11111111",     // RUT de ejemplo
-                                        dv = "1",            // DV de ejemplo
-                                        email = "admin@legacyframes.cl", // Email del admin
-                                        password = "Admin123!", // Contraseña
-                                        rolId = ADMIN_ROL_ID,      // Asigna rol de Administrador
-                                        estadoId = ACTIVO_ESTADO_ID   // Asigna estado Activo
-                                        // Los campos de dirección quedan null por defecto
+                                        rut = "11111111",
+                                        dv = "1",
+                                        email = "admin@legacyframes.cl",
+                                        password = "Admin123!",
+                                        rolId = ADMIN_ROL_ID,
+                                        estadoId = ACTIVO_ESTADO_ID
                                     )
-                                    // Inserta el usuario administrador
                                     dao.insert(adminUser)
-                                    println("Usuario Administrador insertado en la base de datos local.")
                                 }
                             }
                         }
                     })
-                    // --------------------------------------------------------
+                    // --- 4. ASEGÚRATE QUE ESTA LÍNEA ESTÉ (para la migración) ---
                     .fallbackToDestructiveMigration()
                     .build()
 

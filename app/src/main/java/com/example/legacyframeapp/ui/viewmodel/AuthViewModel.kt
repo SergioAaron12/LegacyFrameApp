@@ -8,6 +8,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+// --- AÑADIR IMPORTS ---
+import com.example.legacyframeapp.data.repository.ProductRepository
+import com.example.legacyframeapp.data.local.product.ProductEntity
+import com.example.legacyframeapp.data.local.user.UserEntity
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import com.example.legacyframeapp.domain.validation.validateNameLettersOnly // Usaremos este validador
+import com.example.legacyframeapp.domain.validation.validatePhoneDigitsOnly // Lo usaremos para el precio
 
 // --- ESTADOS DE UI ---
 
@@ -45,10 +53,34 @@ data class RegisterUiState(
     val success: Boolean = false,
     val errorMsg: String? = null
 )
+
+data class SessionUiState(
+    val isLoggedIn: Boolean = false,
+    val currentUser: UserEntity? = null,
+    val isAdmin: Boolean = false
+)
+
+data class AddProductUiState(
+    val name: String = "",
+    val description: String = "",
+    val price: String = "",       // Usamos String para el TextField
+    val imageUri: String = "",  // Por ahora guardaremos el URI como string
+
+    // Estado del formulario
+    val nameError: String? = null,
+    val priceError: String? = null,
+    val imageError: String? = null, // Para cuando implementemos la cámara
+
+    val isSaving: Boolean = false,
+    val saveSuccess: Boolean = false,
+    val canSubmit: Boolean = false,
+    val errorMsg: String? = null
+)
 // -----------------------------------------------------------
 
 class AuthViewModel(
-    private val repository: UserRepository // Inyectamos el repositorio
+    private val userRepository: UserRepository,
+    private val productRepository: ProductRepository
 ) : ViewModel() {
 
     // Flujos de estado
@@ -57,6 +89,21 @@ class AuthViewModel(
 
     private val _register = MutableStateFlow(RegisterUiState())
     val register: StateFlow<RegisterUiState> = _register
+
+    private val _session = MutableStateFlow(SessionUiState())
+    val session: StateFlow<SessionUiState> = _session
+
+    val products: StateFlow<List<ProductEntity>> =
+        productRepository.getAllProducts()
+            .stateIn(
+                scope = viewModelScope,
+                // Empezar a recolectar cuando la UI esté visible
+                started = SharingStarted.WhileSubscribed(5000L),
+                initialValue = emptyList() // Empezar con lista vacía
+            )
+
+    private val _addProduct = MutableStateFlow(AddProductUiState())
+    val addProduct: StateFlow<AddProductUiState> = _addProduct
 
     // --- Funciones on...Change para Login (Sin cambios) ---
     fun onLoginEmailChange(email: String) {
@@ -186,24 +233,131 @@ class AuthViewModel(
                 s.email.isNotBlank() && s.phone.isNotBlank() && // Phone es obligatorio
                 s.pass.isNotBlank() && s.confirm.isNotBlank()
     }
+
+    fun onAddProductChange(
+        name: String = _addProduct.value.name,
+        description: String = _addProduct.value.description,
+        price: String = _addProduct.value.price
+    ) {
+        // Validaciones en tiempo real
+        val nameError = if(name.isBlank()) "El nombre es obligatorio" else null
+        val priceError = validatePhoneDigitsOnly(price) // Re-usamos el validador de teléfono
+
+        _addProduct.update {
+            it.copy(
+                name = name,
+                description = description,
+                price = price,
+                nameError = nameError,
+                priceError = priceError,
+                canSubmit = nameError == null && priceError == null && !it.isSaving
+                // (Añadiremos la validación de imagen aquí más tarde)
+            )
+        }
+    }
+
+    // Función para guardar el producto
+    fun saveProduct() {
+        val s = _addProduct.value
+
+        // Doble chequeo por si acaso
+        if (!s.canSubmit || s.isSaving) return
+
+        // --- TODO: Validación de Imagen ---
+        // if (s.imageUri.isBlank()) {
+        //     _addProduct.update { it.copy(imageError = "Debe seleccionar una imagen") }
+        //     return
+        // }
+        // ------------------------------------
+
+        _addProduct.update { it.copy(isSaving = true, errorMsg = null) }
+
+        viewModelScope.launch {
+            try {
+                // Convertimos el precio (que es String) a Int
+                val priceInt = s.price.toInt()
+
+                // --- TODO: Procesamiento de Imagen ---
+                // Aquí es donde copiaremos la imagen de s.imageUri al almacenamiento
+                // interno y obtendremos el "imagePath" real.
+                // Por AHORA, usaremos un placeholder.
+                val finalImagePath = "" // <-- Placeholder
+                // ------------------------------------
+
+                val newProduct = ProductEntity(
+                    name = s.name.trim(),
+                    description = s.description.trim(),
+                    price = priceInt,
+                    imagePath = finalImagePath // Usamos el placeholder
+                )
+
+                // Insertamos en la base de datos
+                productRepository.insert(newProduct)
+
+                // Éxito
+                _addProduct.update { it.copy(isSaving = false, saveSuccess = true) }
+
+            } catch (e: NumberFormatException) {
+                // Error si el precio no es un número (aunque el validador debería pararlo)
+                _addProduct.update { it.copy(isSaving = false, errorMsg = "El precio ingresado no es válido.") }
+            } catch (e: Exception) {
+                // Cualquier otro error (ej: guardando la imagen, error de DB)
+                _addProduct.update { it.copy(isSaving = false, errorMsg = e.message ?: "Error desconocido al guardar") }
+            }
+        }
+    }
+
+    // Función para resetear el formulario después de guardar
+    fun clearAddProductState() {
+        _addProduct.update { AddProductUiState() } // Resetea al estado inicial
+    }
     // ------------------------------------
 
     // --- Login con Repositorio (Sin cambios) ---
     fun submitLogin() {
         val s = _login.value
-        if (s.emailError != null || s.passError != null || s.email.isBlank() || s.pass.isBlank()) return
+
+        // (Tus validaciones de campos van aquí...)
+        if (s.emailError != null || s.passError != null) {
+            _login.update { it.copy(isSubmitting = false) }
+            return
+        }
 
         viewModelScope.launch {
             _login.update { it.copy(isSubmitting = true, errorMsg = null, success = false) }
-            val result = repository.login(s.email.trim(), s.pass)
+
+            val result = userRepository.login(s.email, s.pass)
+
             _login.update {
                 if (result.isSuccess) {
+                    val user = result.getOrNull() // <--- Obtenemos el usuario
+
+                    // --- AÑADIR ESTO ---
+                    // Actualizamos el estado de la sesión global
+                    _session.update { sessionState ->
+                        sessionState.copy(
+                            isLoggedIn = true,
+                            currentUser = user,
+                            isAdmin = user?.rolId == 1 // 1 es ADMIN_ROL_ID
+                        )
+                    }
+                    // ---------------------
+
                     it.copy(isSubmitting = false, success = true, errorMsg = null) // OK
                 } else {
                     it.copy(isSubmitting = false, success = false,
                         errorMsg = result.exceptionOrNull()?.message ?: "Credenciales inválidas") // Error
                 }
             }
+        }
+    }
+
+    fun logout() {
+        viewModelScope.launch {
+            // (Más adelante conectaremos esto a UserPreferences.kt)
+            _session.update { SessionUiState() } // Resetea al estado inicial (loggedOut)
+            // (Opcional) Limpiar los campos de login
+            _login.update { LoginUiState() }
         }
     }
 
@@ -240,7 +394,7 @@ class AuthViewModel(
             _register.update { it.copy(isSubmitting = true, errorMsg = null, success = false) }
 
             // Llama al repositorio con todos los parámetros
-            val result = repository.register(
+            val result = userRepository.register(
                 nombre = s.nombre,
                 apellido = s.apellido.ifBlank { null }, // Envía null si apellido está vacío
                 rut = s.rut,

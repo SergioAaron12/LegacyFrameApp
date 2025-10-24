@@ -18,6 +18,7 @@ import com.example.legacyframeapp.data.repository.UserRepository
 import com.example.legacyframeapp.navegation.AppNavGraph
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModelFactory
+import com.example.legacyframeapp.data.repository.ProductRepository
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,29 +34,38 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppRoot() {
     // --- Inicialización del ViewModel ---
-    val context = LocalContext.current // Obtiene el contexto actual
-    val db = AppDatabase.getDatabase(context) // Obtiene instancia de la base de datos
-    val userDao = db.userDao() // Obtiene el DAO de usuario
-    val userRepository = UserRepository(userDao) // Crea el repositorio con el DAO
-    // Crea el ViewModel usando la Factory para inyectar el repositorio
+    val context = LocalContext.current
+    val db = AppDatabase.getDatabase(context)
+
+    // DAO de Usuario (existente)
+    val userDao = db.userDao()
+    val userRepository = UserRepository(userDao)
+
+    // --- AÑADIR ESTO ---
+    // DAO de Producto (nuevo)
+    val productDao = db.productDao()
+    // Repositorio de Producto (nuevo)
+    val productRepository = ProductRepository(productDao)
+    // ---------------------
+
+    // Crea el ViewModel usando la Factory (AHORA PASAMOS AMBOS REPOS)
     val authViewModel: AuthViewModel = viewModel(
-        factory = AuthViewModelFactory(userRepository)
+        factory = AuthViewModelFactory(
+            userRepository = userRepository,
+            productRepository = productRepository // <--- AÑADIR ESTO
+        )
     )
     // ------------------------------------
 
-    val navController = rememberNavController() // Controlador de navegación
+    val navController = rememberNavController()
 
-    // --- APLICA TU TEMA PERSONALIZADO ---
-    // Reemplaza MaterialTheme por el nombre de tu tema (UINavegacionTheme)
+    // ... (El resto de tu UINavegacionTheme sigue igual) ...
     UINavegacionTheme {
-        // Surface actúa como el contenedor base con el color de fondo del tema
         Surface(color = MaterialTheme.colorScheme.background) {
-            // Carga el grafo de navegación, pasando el ViewModel
             AppNavGraph(
                 navController = navController,
-                authViewModel = authViewModel // Pasa la instancia única del ViewModel
+                authViewModel = authViewModel
             )
         }
     }
-    // ------------------------------------
 }

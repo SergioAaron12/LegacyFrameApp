@@ -4,6 +4,8 @@ import androidx.compose.material.icons.Icons // Íconos Material
 import androidx.compose.material.icons.filled.Home // Ícono Home
 import androidx.compose.material.icons.filled.AccountCircle // Ícono Login
 import androidx.compose.material.icons.filled.Person // Ícono Registro
+import androidx.compose.material.icons.filled.ListAlt // Icono para Molduras
+import androidx.compose.material.icons.filled.Logout // Icono para Cerrar Sesión
 import androidx.compose.material3.Icon // Ícono en ítem del drawer
 import androidx.compose.material3.NavigationDrawerItem // Ítem seleccionable
 import androidx.compose.material3.NavigationDrawerItemDefaults // Defaults de estilo
@@ -12,6 +14,7 @@ import androidx.compose.material3.ModalDrawerSheet // Contenedor de contenido de
 import androidx.compose.runtime.Composable // Marcador composable
 import androidx.compose.ui.Modifier // Modificador
 import androidx.compose.ui.graphics.vector.ImageVector // Tipo de ícono
+
 // Pequeña data class para representar cada opción del drawer
 data class DrawerItem( // Estructura de un ítem de menú lateral
     val label: String, // Texto a mostrar
@@ -42,14 +45,26 @@ fun AppDrawer(
     }
 }
 
-// Helper para construir la lista estándar de ítems del drawer
+
 @Composable
-fun defaultDrawerItems(
-    onHome: () -> Unit,   // Acción Home
-    onLogin: () -> Unit,  // Acción Login
-    onRegister: () -> Unit // Acción Registro
+fun loggedOutDrawerItems(
+    onHome: () -> Unit,
+    onLogin: () -> Unit,
+    onRegister: () -> Unit
 ): List<DrawerItem> = listOf(
-    DrawerItem("Home", Icons.Filled.Home, onHome),          // Ítem Home
-    DrawerItem("Login", Icons.Filled.AccountCircle, onLogin),       // Ítem Login
-    DrawerItem("Registro", Icons.Filled.Person, onRegister) // Ítem Registro
+    DrawerItem("Home", Icons.Filled.Home, onHome),
+    DrawerItem("Login", Icons.Filled.AccountCircle, onLogin),
+    DrawerItem("Registro", Icons.Filled.Person, onRegister)
+)
+
+@Composable
+fun loggedInDrawerItems(
+    onHome: () -> Unit,
+    onMolduras: () -> Unit, // <-- Nueva acción
+    // (Aquí podrías añadir "onProfile" en el futuro)
+    onLogout: () -> Unit   // <-- Nueva acción
+): List<DrawerItem> = listOf(
+    DrawerItem("Home", Icons.Filled.Home, onHome),
+    DrawerItem("Molduras", Icons.Filled.ListAlt, onMolduras), // <-- NUEVO ÍTEM
+    DrawerItem("Cerrar Sesión", Icons.Filled.Logout, onLogout) // <-- NUEVO ÍTEM
 )
