@@ -22,3 +22,5 @@ app/build/
 .cxx
 local.properties
 caches/
+daemon/
+kotlin-profile/
