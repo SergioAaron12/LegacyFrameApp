@@ -1,9 +1,13 @@
 package com.example.legacyframeapp.ui.screen
+
+// --- Animación ---
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+
+// --- Layout (Diseño) ---
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,26 +22,45 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+
+// --- Material Icons ---
 import androidx.compose.material.icons.Icons
+import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Photo // Icono placeholder
+import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.AddShoppingCart
+
+// --- Material 3 Components ---
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+
+// --- Runtime y Composable ---
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+
+// --- ViewModel y Lifecycle ---
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+// --- Librerías (Coil) ---
+import coil.compose.AsyncImage
+
+// --- Lógica del Dominio y Datos ---
 import com.example.legacyframeapp.data.local.product.ProductEntity
+import com.example.legacyframeapp.domain.ImageStorageHelper
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
 // -----------------------------------------------------------------
@@ -55,7 +78,8 @@ fun MoldurasScreenVm(
     MoldurasScreen(
         products = products,
         isAdmin = session.isAdmin,
-        onAddProduct = onAddProduct
+        onAddProduct = onAddProduct,
+        onAddToCart = vm::addToCart
     )
 }
 
@@ -66,7 +90,8 @@ fun MoldurasScreenVm(
 fun MoldurasScreen(
     products: List<ProductEntity>,
     isAdmin: Boolean,
-    onAddProduct: () -> Unit
+    onAddProduct: () -> Unit,
+    onAddToCart: (ProductEntity) -> Unit
 ) {
     Scaffold(
         // --- Animación #2: Botón Flotante de Admin ---
@@ -121,7 +146,10 @@ fun MoldurasScreen(
 
                 // Un ítem por cada producto en la lista
                 items(products, key = { it.id }) { product ->
-                    ProductCard(product = product)
+                    ProductCard(
+                        product = product,
+                        onAddToCart = { onAddToCart(product) } // <-- Pasa la acción
+                    )
                 }
             }
         }
@@ -132,31 +160,47 @@ fun MoldurasScreen(
 // 3. Card para mostrar 1 producto
 // -----------------------------------------------------------------
 @Composable
-private fun ProductCard(product: ProductEntity) {
+private fun ProductCard(
+    product: ProductEntity,
+    onAddToCart: () -> Unit
+) {
+
+    val context = LocalContext.current
+    val imageFile = if (product.imagePath.isNotBlank()) {
+        ImageStorageHelper.getImageFile(context, product.imagePath)
+    } else {
+        null
+    }
+
+    val placeholderPainter = rememberVectorPainter(image = Icons.Default.Photo)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        // ---------------------------------
+
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // --- Placeholder de Imagen ---
-            // (Más adelante, aquí cargaremos la foto desde product.imagePath con Coil)
-            Icon(
-                imageVector = Icons.Default.Photo,
-                contentDescription = "Placeholder de moldura",
-                modifier = Modifier.size(80.dp),
-                tint = Color.Gray
+
+            AsyncImage(
+                model = imageFile,
+                contentDescription = product.name,
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(MaterialTheme.shapes.small),
+                contentScale = ContentScale.Crop,
+                placeholder = placeholderPainter,
+                error = placeholderPainter
             )
-            // -----------------------------
 
             Spacer(Modifier.width(16.dp))
 
-            // --- Columna de Textos ---
             Column(
-                modifier = Modifier.weight(1f) // Ocupa el espacio restante
+                modifier = Modifier.weight(1f)
             ) {
                 Text(
                     text = product.name,
@@ -170,12 +214,14 @@ private fun ProductCard(product: ProductEntity) {
                     maxLines = 3
                 )
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "$ ${product.price}", // Formato de precio simple
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                IconButton(onClick = onAddToCart) {
+                    Icon(
+                        imageVector = Icons.Default.AddShoppingCart,
+                        contentDescription = "Añadir al carrito",
+                        tint = MaterialTheme.colorScheme.primary // Tinte café
+                    )
+                }
+                // ---------------------------------
             }
         }
     }

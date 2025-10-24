@@ -11,11 +11,16 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppTopBar(
-    onOpenDrawer: () -> Unit // La única acción que necesita
+    onOpenDrawer: () -> Unit,
+    onGoCart: () -> Unit,
+    cartItemCount: Int
 ) {
     CenterAlignedTopAppBar(
         colors = TopAppBarDefaults.topAppBarColors(
@@ -30,6 +35,29 @@ fun AppTopBar(
                 overflow = TextOverflow.Ellipsis
             )
         },
+        // --- AÑADIR 'actions' (Iconos a la derecha) ---
+        actions = {
+            // Caja que permite poner un "Badge" (globo) sobre un ícono
+            BadgedBox(
+                badge = {
+                    // Solo muestra el Badge si hay items
+                    if (cartItemCount > 0) {
+                        Badge {
+                            Text(cartItemCount.toString())
+                        }
+                    }
+                }
+            ) {
+                // El ícono del carrito en sí
+                IconButton(onClick = onGoCart) {
+                    Icon(
+                        imageVector = Icons.Default.ShoppingCart,
+                        contentDescription = "Ver Carrito"
+                    )
+                }
+            }
+        },
+
         // Botón de Menú (Hamburguesa)
         navigationIcon = {
             IconButton(onClick = onOpenDrawer) {

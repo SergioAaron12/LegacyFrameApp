@@ -1,5 +1,5 @@
 package com.example.legacyframeapp
-
+import android.app.Application
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,7 +19,7 @@ import com.example.legacyframeapp.navegation.AppNavGraph
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModelFactory
 import com.example.legacyframeapp.data.repository.ProductRepository
-
+import com.example.legacyframeapp.data.repository.CartRepository
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,33 +33,36 @@ class MainActivity : ComponentActivity() {
 // Composable raíz que configura el ViewModel y la Navegación
 @Composable
 fun AppRoot() {
-    // --- Inicialización del ViewModel ---
+    // --- Inicialización ---
     val context = LocalContext.current
+    val application = context.applicationContext as Application
     val db = AppDatabase.getDatabase(context)
 
-    // DAO de Usuario (existente)
+    // --- Repositorios existentes ---
     val userDao = db.userDao()
     val userRepository = UserRepository(userDao)
 
-    // --- AÑADIR ESTO ---
-    // DAO de Producto (nuevo)
     val productDao = db.productDao()
-    // Repositorio de Producto (nuevo)
     val productRepository = ProductRepository(productDao)
+
+    // --- AÑADIR ESTO ---
+    val cartDao = db.cartDao() // 1. Obtener el DAO del carrito
+    val cartRepository = CartRepository(cartDao) // 2. Crear el Repo del carrito
     // ---------------------
 
-    // Crea el ViewModel usando la Factory (AHORA PASAMOS AMBOS REPOS)
+    // --- Modificar la Factory ---
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModelFactory(
+            application = application,
             userRepository = userRepository,
-            productRepository = productRepository // <--- AÑADIR ESTO
+            productRepository = productRepository,
+            cartRepository = cartRepository // <--- 3. AÑADIR ESTO
         )
     )
     // ------------------------------------
 
     val navController = rememberNavController()
 
-    // ... (El resto de tu UINavegacionTheme sigue igual) ...
     UINavegacionTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             AppNavGraph(

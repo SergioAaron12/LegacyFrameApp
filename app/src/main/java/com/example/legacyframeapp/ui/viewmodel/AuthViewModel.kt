@@ -1,5 +1,7 @@
-package com.example.legacyframeapp.ui.viewmodel // Asegúrate que el paquete sea correcto
-
+package com.example.legacyframeapp.ui.viewmodel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.legacyframeapp.domain.validation.* // Tus funciones de validación
@@ -16,6 +18,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import com.example.legacyframeapp.domain.validation.validateNameLettersOnly // Usaremos este validador
 import com.example.legacyframeapp.domain.validation.validatePhoneDigitsOnly // Lo usaremos para el precio
+import com.example.legacyframeapp.domain.ImageStorageHelper // El helper que creamos
+import kotlinx.coroutines.Dispatchers // Para cambiar a Dispatchers.IO
+import kotlinx.coroutines.withContext
+import java.io.IOException // Para capturar errores de archivo
+import androidx.core.content.FileProvider // ¡El que acabamos de configurar!
+import java.io.File
+import com.example.legacyframeapp.data.repository.CartRepository
+import com.example.legacyframeapp.data.local.cart.CartItemEntity
 
 // --- ESTADOS DE UI ---
 
@@ -64,24 +74,26 @@ data class AddProductUiState(
     val name: String = "",
     val description: String = "",
     val price: String = "",       // Usamos String para el TextField
-    val imageUri: String = "",  // Por ahora guardaremos el URI como string
+    val imageUri: Uri? = null,
 
     // Estado del formulario
     val nameError: String? = null,
     val priceError: String? = null,
-    val imageError: String? = null, // Para cuando implementemos la cámara
+    val imageError: String? = null,
 
     val isSaving: Boolean = false,
     val saveSuccess: Boolean = false,
-    val canSubmit: Boolean = false,
+    val canSubmit: Boolean = false, // <-- MODIFICAREMOS ESTO
     val errorMsg: String? = null
 )
 // -----------------------------------------------------------
 
 class AuthViewModel(
+    application: Application,
     private val userRepository: UserRepository,
-    private val productRepository: ProductRepository
-) : ViewModel() {
+    private val productRepository: ProductRepository,
+    private val cartRepository: CartRepository
+) : AndroidViewModel(application) {
 
     // Flujos de estado
     private val _login = MutableStateFlow(LoginUiState())
@@ -104,6 +116,35 @@ class AuthViewModel(
 
     private val _addProduct = MutableStateFlow(AddProductUiState())
     val addProduct: StateFlow<AddProductUiState> = _addProduct
+
+    // --- AÑADIR ESTADOS DEL CARRITO ---
+
+    // Lista de items en el carrito
+    val cartItems: StateFlow<List<CartItemEntity>> =
+        cartRepository.getAllCartItems()
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000L),
+                initialValue = emptyList()
+            )
+
+    // Conteo total de items (para el ícono del carrito)
+    val cartItemCount: StateFlow<Int> =
+        cartRepository.cartItemCount
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000L),
+                initialValue = 0
+            )
+
+    // Precio total del carrito
+    val cartTotal: StateFlow<Int> =
+        cartRepository.cartTotal
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000L),
+                initialValue = 0
+            )
 
     // --- Funciones on...Change para Login (Sin cambios) ---
     fun onLoginEmailChange(email: String) {
@@ -241,7 +282,10 @@ class AuthViewModel(
     ) {
         // Validaciones en tiempo real
         val nameError = if(name.isBlank()) "El nombre es obligatorio" else null
-        val priceError = validatePhoneDigitsOnly(price) // Re-usamos el validador de teléfono
+        val priceError = validatePhoneDigitsOnly(price)
+
+        // --- LEER EL ESTADO ACTUAL DE LA IMAGEN ---
+        val currentImageUri = _addProduct.value.imageUri
 
         _addProduct.update {
             it.copy(
@@ -250,8 +294,21 @@ class AuthViewModel(
                 price = price,
                 nameError = nameError,
                 priceError = priceError,
-                canSubmit = nameError == null && priceError == null && !it.isSaving
-                // (Añadiremos la validación de imagen aquí más tarde)
+                // --- ACTUALIZAR canSubmit ---
+                canSubmit = nameError == null && priceError == null && currentImageUri != null && !it.isSaving
+            )
+        }
+    }
+    fun onImageSelected(uri: Uri?) {
+        val nameError = _addProduct.value.nameError
+        val priceError = _addProduct.value.priceError
+
+        _addProduct.update {
+            it.copy(
+                imageUri = uri,
+                imageError = if (uri == null) "Debe seleccionar una imagen" else null,
+                // El formulario es válido si no hay errores Y la imagen no es nula
+                canSubmit = nameError == null && priceError == null && uri != null && !it.isSaving
             )
         }
     }
@@ -260,60 +317,122 @@ class AuthViewModel(
     fun saveProduct() {
         val s = _addProduct.value
 
-        // Doble chequeo por si acaso
         if (!s.canSubmit || s.isSaving) return
-
-        // --- TODO: Validación de Imagen ---
-        // if (s.imageUri.isBlank()) {
-        //     _addProduct.update { it.copy(imageError = "Debe seleccionar una imagen") }
-        //     return
-        // }
-        // ------------------------------------
+        if (s.imageUri == null) { // Doble chequeo
+            _addProduct.update { it.copy(imageError = "Debe seleccionar una imagen", isSaving = false) }
+            return
+        }
 
         _addProduct.update { it.copy(isSaving = true, errorMsg = null) }
 
-        viewModelScope.launch {
+        // --- CAMBIAR A Dispatchers.IO para I/O (guardar archivo) ---
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Convertimos el precio (que es String) a Int
                 val priceInt = s.price.toInt()
 
-                // --- TODO: Procesamiento de Imagen ---
-                // Aquí es donde copiaremos la imagen de s.imageUri al almacenamiento
-                // interno y obtendremos el "imagePath" real.
-                // Por AHORA, usaremos un placeholder.
-                val finalImagePath = "" // <-- Placeholder
+                // --- 1. OBTENER EL CONTEXTO ---
+                val context = getApplication<Application>().applicationContext
+
+                // --- 2. COPIAR LA IMAGEN Y OBTENER EL NOMBRE ---
+                val finalImageName = ImageStorageHelper.saveImageToInternalStorage(context, s.imageUri)
                 // ------------------------------------
 
                 val newProduct = ProductEntity(
                     name = s.name.trim(),
                     description = s.description.trim(),
                     price = priceInt,
-                    imagePath = finalImagePath // Usamos el placeholder
+                    imagePath = finalImageName // <-- ¡Guardamos el nombre del archivo!
                 )
 
-                // Insertamos en la base de datos
                 productRepository.insert(newProduct)
 
-                // Éxito
-                _addProduct.update { it.copy(isSaving = false, saveSuccess = true) }
+                // Volvemos al hilo principal para actualizar la UI
+                withContext(Dispatchers.Main) {
+                    _addProduct.update { it.copy(isSaving = false, saveSuccess = true) }
+                }
 
             } catch (e: NumberFormatException) {
-                // Error si el precio no es un número (aunque el validador debería pararlo)
-                _addProduct.update { it.copy(isSaving = false, errorMsg = "El precio ingresado no es válido.") }
+                withContext(Dispatchers.Main) {
+                    _addProduct.update { it.copy(isSaving = false, errorMsg = "El precio ingresado no es válido.") }
+                }
+            } catch (e: IOException) { // --- AÑADIR ESTE CATCH ---
+                // Error al copiar el archivo
+                withContext(Dispatchers.Main) {
+                    _addProduct.update { it.copy(isSaving = false, errorMsg = "Error al guardar la imagen.") }
+                }
             } catch (e: Exception) {
-                // Cualquier otro error (ej: guardando la imagen, error de DB)
-                _addProduct.update { it.copy(isSaving = false, errorMsg = e.message ?: "Error desconocido al guardar") }
+                withContext(Dispatchers.Main) {
+                    _addProduct.update { it.copy(isSaving = false, errorMsg = e.message ?: "Error desconocido al guardar") }
+                }
             }
         }
     }
 
     // Función para resetear el formulario después de guardar
     fun clearAddProductState() {
-        _addProduct.update { AddProductUiState() } // Resetea al estado inicial
+        _addProduct.update { AddProductUiState() } // Resetea al estado inicial (imageUri será null)
+    }
+
+    fun createTempImageUri(): Uri {
+        val context = getApplication<Application>().applicationContext
+
+        // 1. Define el directorio (usando el path "images" que definimos en file_paths.xml)
+        val imageDir = File(context.cacheDir, "images")
+        if (!imageDir.exists()) {
+            imageDir.mkdirs()
+        }
+
+        // 2. Crea el archivo temporal
+        val tempFile = File.createTempFile(
+            "product_${System.currentTimeMillis()}", // Prefijo
+            ".jpg", // Sufijo
+            imageDir // Directorio
+        )
+
+        // 3. Obtiene el URI usando el FileProvider
+        // La "autoridad" DEBE coincidir con la del AndroidManifest.xml
+        val authority = "com.example.legacyframeapp.fileprovider"
+
+        return FileProvider.getUriForFile(
+            context,
+            authority,
+            tempFile
+        )
+    }
+
+    fun addToCart(product: ProductEntity) {
+        viewModelScope.launch {
+            cartRepository.addToCart(product)
+        }
+    }
+
+    fun removeFromCart(item: CartItemEntity) {
+        viewModelScope.launch {
+            // Si la cantidad es > 1, solo resta 1
+            if (item.quantity > 1) {
+                cartRepository.update(item.copy(quantity = item.quantity - 1))
+            } else {
+                // Si la cantidad es 1, borra el item
+                cartRepository.delete(item)
+            }
+        }
+    }
+
+    // (Opcional) Añadir uno más (para usar en CartScreen)
+    fun addOneToCart(item: CartItemEntity) {
+        viewModelScope.launch {
+            cartRepository.update(item.copy(quantity = item.quantity + 1))
+        }
+    }
+
+    fun clearCart() {
+        viewModelScope.launch {
+            cartRepository.clearCart()
+        }
     }
     // ------------------------------------
 
-    // --- Login con Repositorio (Sin cambios) ---
+    // --- Login con Repositorio  ---
     fun submitLogin() {
         val s = _login.value
 
@@ -332,7 +451,6 @@ class AuthViewModel(
                 if (result.isSuccess) {
                     val user = result.getOrNull() // <--- Obtenemos el usuario
 
-                    // --- AÑADIR ESTO ---
                     // Actualizamos el estado de la sesión global
                     _session.update { sessionState ->
                         sessionState.copy(
@@ -361,7 +479,7 @@ class AuthViewModel(
         }
     }
 
-    // --- submitRegister (Completo) ---
+    // --- submitRegister---
     fun submitRegister() {
         val s = _register.value
         val canSubmitFinal = checkRegisterCanSubmit(s)

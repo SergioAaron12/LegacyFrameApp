@@ -26,6 +26,7 @@ import com.example.legacyframeapp.ui.screen.LoginScreenVm // Pantalla Login
 import com.example.legacyframeapp.ui.screen.RegisterScreenVm // Pantalla Registro
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import com.example.legacyframeapp.ui.screen.AddProductScreenVm
+import com.example.legacyframeapp.ui.screen.CartScreenVm
 
 @Composable
 fun AppNavGraph(
@@ -34,6 +35,7 @@ fun AppNavGraph(
 ) {
     // --- ESTADO DE SESIÓN (CLAVE PARA LA UI DINÁMICA) ---
     val session by authViewModel.session.collectAsStateWithLifecycle()
+    val cartItemCount by authViewModel.cartItemCount.collectAsStateWithLifecycle()
     // ----------------------------------------------------
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
@@ -83,6 +85,14 @@ fun AppNavGraph(
         scope.launch { drawerState.close() }
     }
 
+    // --- ACCIÓN PARA IR AL CARRITO  ---
+    val goCart: () -> Unit = {
+        navController.navigate(Route.Cart.path) { // <--- MODIFICADO
+            launchSingleTop = true
+        }
+    }
+    // ---------------------------------------
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         // --- CONTENIDO DINÁMICO DEL MENÚ ---
@@ -115,7 +125,9 @@ fun AppNavGraph(
             // --- TOP BAR SIMPLIFICADA ---
             topBar = {
                 AppTopBar(
-                    onOpenDrawer = openDrawer // Solo pasa la acción de abrir
+                    onOpenDrawer = openDrawer,
+                    onGoCart = goCart,           // <-- Pasar la acción
+                    cartItemCount = cartItemCount // <-- Pasar el conteo
                 )
             }
         ) { innerPadding ->
@@ -156,6 +168,12 @@ fun AppNavGraph(
                     AddProductScreenVm(
                         vm = authViewModel,
                         onNavigateBack = goBack // <--- PASAR ACCIÓN "VOLVER"
+                    )
+                }
+                composable(Route.Cart.path) {
+                    CartScreenVm(
+                        vm = authViewModel,
+                        onNavigateBack = goBack // Acción para volver
                     )
                 }
             }

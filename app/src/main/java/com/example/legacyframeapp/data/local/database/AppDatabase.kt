@@ -14,7 +14,8 @@ import com.example.legacyframeapp.data.local.user.UserEntity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-
+import com.example.legacyframeapp.data.local.cart.CartDao
+import com.example.legacyframeapp.data.local.cart.CartItemEntity
 // --- (Tus constantes ADMIN_ROL_ID, etc. van aquí) ---
 private const val ADMIN_ROL_ID = 1
 private const val ACTIVO_ESTADO_ID = 1
@@ -23,17 +24,17 @@ private const val ACTIVO_ESTADO_ID = 1
 @Database(
     entities = [
         UserEntity::class,
-        ProductEntity::class  // <--- 1. ASEGÚRATE DE AÑADIR ESTO
+        ProductEntity::class,
+        CartItemEntity::class
     ],
-    version = 2,              // <--- 2. ASEGÚRATE DE CAMBIAR LA VERSIÓN A 2
+    version = 3,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao
-
-    // --- 3. ESTA LÍNEA ES LA QUE TE FALTA Y CAUSA EL ERROR ---
     abstract fun productDao(): ProductDao
+    abstract fun cartDao(): CartDao
     // ---------------------------------------------------------
 
     companion object {
@@ -72,7 +73,7 @@ abstract class AppDatabase : RoomDatabase() {
                             }
                         }
                     })
-                    // --- 4. ASEGÚRATE QUE ESTA LÍNEA ESTÉ (para la migración) ---
+                    // ESTO SEGUIRÁ MANEJANDO LA MIGRACIÓN
                     .fallbackToDestructiveMigration()
                     .build()
 
