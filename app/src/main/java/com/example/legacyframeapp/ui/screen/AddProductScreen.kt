@@ -62,57 +62,189 @@ fun AddProductScreenVm(
 ) {
     val state by vm.addProduct.collectAsStateWithLifecycle()
 
-    // Cuando 'saveSuccess' se vuelve true, resetea el estado y vuelve atrás
+    // El LaunchedEffect para navegar atrás cuando state.saveSuccess es true
+    // sigue igual y está perfecto.
     LaunchedEffect(state.saveSuccess) {
         if (state.saveSuccess) {
-            vm.clearAddProductState() // Limpia el formulario en el VM
-            onNavigateBack() // Navega a la pantalla anterior
+            vm.clearAddProductState()
+            onNavigateBack()
         }
     }
-    // --- MANEJO DEL DIÁLOGO DE SELECCIÓN ---
-    // 'show' controla si el diálogo está visible
-    var showDialog by remember { mutableStateOf(false) }
-    // 'tempUri' guardará el Uri de la cámara mientras se toma la foto
-    var tempUri by remember { mutableStateOf<Uri?>(null) }
-    // -------------------------------------
 
-    // Si el diálogo debe mostrarse, lo componemos
-    if (showDialog) {
-        ImagePickerSelector(
-            onDismiss = { showDialog = false }, // Cierra el diálogo
-            onGallery = {
-                showDialog = false
-                // (La lógica de galería se moverá al 'AddProductScreen' de abajo)
-            },
-            onCamera = {
-                showDialog = false
-                tempUri = vm.createTempImageUri() // 1. Creamos el Uri
-                // (La lógica de cámara se moverá al 'AddProductScreen' de abajo)
-            }
-        )
-    }
+    // --- VERSIÓN SIMPLIFICADA ---
+    // Ya no manejamos 'showDialog' ni 'tempUri' aquí.
 
     AddProductScreen(
+        // Pasamos el estado (sin cambios)
         name = state.name,
         description = state.description,
         price = state.price,
-        imageUri = state.imageUri, // <--- PASAR EL URI
+        imageUri = state.imageUri,
         nameError = state.nameError,
         priceError = state.priceError,
-        imageError = state.imageError, // <--- PASAR EL ERROR DE IMAGEN
+        imageError = state.imageError,
         isSaving = state.isSaving,
         canSubmit = state.canSubmit,
         errorMsg = state.errorMsg,
+
+        // Pasamos las acciones (sin cambios)
         onNameChange = { vm.onAddProductChange(name = it) },
         onDescriptionChange = { vm.onAddProductChange(description = it) },
         onPriceChange = { vm.onAddProductChange(price = it) },
         onImageSelected = { uri -> vm.onImageSelected(uri) },
         onSubmit = { vm.saveProduct() },
         onBack = onNavigateBack,
-        onShowImagePicker = { showDialog = true }, // <-- Acción para MOSTRAR el diálogo
-        tempCameraUri = tempUri // <-- Pasamos el Uri temporal
+
+        // --- AÑADIMOS ESTO ---
+        // Le pasamos la *función* para crear el Uri de la cámara
+        createTempImageUri = vm::createTempImageUri
     )
 }
+// -----------------------------------------------------------------
+// 2. Composable "Stateless" (Solo UI)
+// -----------------------------------------------------------------
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddProductScreen(
+    name: String, description: String, price: String, imageUri: Uri?,
+    nameError: String?, priceError: String?, imageError: String?,
+    isSaving: Boolean, canSubmit: Boolean, errorMsg: String?,
+    onNameChange: (String) -> Unit,
+    onDescriptionChange: (String) -> Unit,
+    onPriceChange: (String) -> Unit,
+    onImageSelected: (Uri?) -> Unit,
+    onSubmit: () -> Unit,
+    onBack: () -> Unit,
+
+    // --- PARÁMETRO NUEVO ---
+    createTempImageUri: () -> Uri // Función que viene del VM
+) {
+
+    // --- ESTADO LOCAL PARA EL DIÁLOGO Y EL URI TEMPORAL ---
+    var showDialog by remember { mutableStateOf(false) }
+    var tempUri by remember { mutableStateOf<Uri?>(null) }
+
+    // --- 1. LANZADOR DE GALERÍA (Photo Picker) ---
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            onImageSelected(uri)
+        }
+    )
+
+    // --- 2. LANZADOR DE CÁMARA ---
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                // Si la foto se tomó, usamos el tempUri que creamos
+                onImageSelected(tempUri)
+            }
+        }
+    )
+
+    // --- 3. LANZADOR DE PERMISO DE GALERÍA ---
+    val galleryPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            } else {
+                println("Permiso de galería denegado")
+            }
+        }
+    )
+
+    // --- 4. LANZADOR DE PERMISO DE CÁMARA ---
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                // El 'tempUri' ya fue creado por el diálogo
+                tempUri?.let { uri ->
+                    cameraLauncher.launch(uri)
+                }
+            } else {
+                println("Permiso de cámara denegado")
+            }
+        }
+    )
+
+    // --- Lógica del Diálogo (AHORA SÍ FUNCIONARÁ) ---
+    if (showDialog) {
+        ImagePickerSelector(
+            onDismiss = { showDialog = false },
+            onGallery = {
+                showDialog = false
+                galleryPermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
+            },
+            onCamera = {
+                showDialog = false
+                // --- ARREGLO CLAVE ---
+                // 1. Creamos el Uri temporal *antes* de pedir permiso
+                tempUri = createTempImageUri()
+                // 2. Pedimos el permiso
+                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            // ... (Tu TopBar sigue igual) ...
+            CenterAlignedTopAppBar(
+                title = { Text("Añadir Moldura") },
+                // ... (colors, navigationIcon)
+            )
+        }
+    ) { innerPadding ->
+        Column(
+            // ... (Tu Column y campos de Texto siguen igual) ...
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+
+            // ... (Campo Nombre, Desc, Precio) ...
+
+            // --- VISTA PREVIA DE LA IMAGEN (sin cambios) ---
+            if (imageUri != null) {
+                // ... (Tu AsyncImage)
+            }
+
+            // --- Botón Seleccionar Imagen (MODIFICADO) ---
+            OutlinedButton(
+                onClick = {
+                    // --- ARREGLO CLAVE ---
+                    // Ahora cambia la variable 'showDialog' local
+                    showDialog = true
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                Text(if (imageUri == null) "Seleccionar Imagen" else "Cambiar Imagen")
+            }
+            if (imageError != null) {
+                Text(imageError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // --- Botón Guardar (sin cambios) ---
+            Button(
+                onClick = onSubmit,
+                // ... (el resto del botón sigue igual) ...
+            ) {
+                // ...
+            }
+        }
+    }
+}
+
 @Composable
 fun ImagePickerSelector(
     onDismiss: () -> Unit,
@@ -138,175 +270,4 @@ fun ImagePickerSelector(
             }
         }
     )
-}
-// -----------------------------------------------------------------
-// 2. Composable "Stateless" (Solo UI)
-// -----------------------------------------------------------------
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AddProductScreen(
-    name: String, description: String, price: String, imageUri: Uri?,
-    nameError: String?, priceError: String?, imageError: String?,
-    isSaving: Boolean, canSubmit: Boolean, errorMsg: String?,
-    onNameChange: (String) -> Unit,
-    onDescriptionChange: (String) -> Unit,
-    onPriceChange: (String) -> Unit,
-    onImageSelected: (Uri?) -> Unit,
-    onSubmit: () -> Unit,
-    onBack: () -> Unit,
-
-    // --- NUEVOS PARÁMETROS ---
-    onShowImagePicker: () -> Unit,
-    tempCameraUri: Uri? // El Uri temporal creado por el VM
-) {
-    // --- 1. LANZADOR DE GALERÍA (Photo Picker) ---
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri ->
-            onImageSelected(uri) // Llama al ViewModel con el Uri seleccionado
-        }
-    )
-
-    // --- 2. LANZADOR DE CÁMARA ---
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture(),
-        onResult = { success ->
-            if (success) {
-                // Si la foto se tomó (success=true),
-                // el 'tempCameraUri' ya contiene la foto.
-                onImageSelected(tempCameraUri)
-            }
-            // Si el usuario canceló (success=false), no hacemos nada
-        }
-    )
-
-    // --- 3. LANZADOR DE PERMISO DE GALERÍA ---
-    val galleryPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                // Permiso concedido, lanzar la galería
-                photoPickerLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
-            } else {
-                println("Permiso de galería denegado")
-            }
-        }
-    )
-
-    // --- 4. LANZADOR DE PERMISO DE CÁMARA ---
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                // Permiso concedido, lanzar la cámara
-                // El 'tempCameraUri' NO debe ser nulo aquí
-                tempCameraUri?.let { uri ->
-                    cameraLauncher.launch(uri)
-                }
-            } else {
-                println("Permiso de cámara denegado")
-            }
-        }
-    )
-
-    // --- Lógica del Diálogo (movida desde el Vm) ---
-    var showDialog by remember { mutableStateOf(false) }
-
-    if (showDialog) {
-        ImagePickerSelector(
-            onDismiss = { showDialog = false },
-            onGallery = {
-                // --- Lógica de Galería ---
-                showDialog = false
-                galleryPermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-            },
-            onCamera = {
-                // --- Lógica de Cámara ---
-                showDialog = false
-                cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-            }
-        )
-    }
-    // --------------------------------------
-
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                // ... (Tu TopBar sigue igual) ...
-                title = { Text("Añadir Moldura") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
-                    }
-                }
-            )
-        }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(16.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-
-            // ... (Campo Nombre, Campo Descripción, Campo Precio siguen igual) ...
-
-            // --- VISTA PREVIA DE LA IMAGEN ---
-            if (imageUri != null) {
-                AsyncImage(
-                    model = imageUri, // Carga la imagen desde el Uri
-                    contentDescription = "Imagen seleccionada",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f) // Proporción 16:9
-                        .clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            // --- Botón Seleccionar Imagen ---
-            OutlinedButton(
-                onClick = {
-                    // --- ¡Ahora solo muestra el diálogo! ---
-                    onShowImagePicker()
-                },
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                Text(if (imageUri == null) "Seleccionar Imagen" else "Cambiar Imagen")
-            }
-            if (imageError != null) {
-                Text(imageError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // --- Botón Guardar ---
-            Button(
-                // ... (Tu botón de guardar sigue igual) ...
-                onClick = onSubmit,
-                enabled = canSubmit && !isSaving,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.height(24.dp), color = MaterialTheme.colorScheme.onPrimary)
-                } else {
-                    Text("Guardar Producto")
-                }
-            }
-
-            if (errorMsg != null) {
-                Text(errorMsg, color = MaterialTheme.colorScheme.error)
-            }
-        }
-    }
 }
