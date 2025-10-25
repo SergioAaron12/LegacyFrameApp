@@ -10,8 +10,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.PhotoCamera // Icono para el botón de imagen
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.PhotoCamera // Icono para Cámara
+import androidx.compose.material.icons.filled.PhotoLibrary // Icono para Galería
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
@@ -27,6 +28,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
@@ -37,6 +39,15 @@ import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+// Evitamos usar BuildConfig aquí; usaremos context.packageName para el FileProvider
+import android.net.Uri
+import java.io.File
 
 // -----------------------------------------------------------------
 // 1. Composable "Stateful" (Conectado al ViewModel)
@@ -47,6 +58,7 @@ fun AddProductScreenVm(
     onNavigateBack: () -> Unit // Acción para volver atrás
 ) {
     val state by vm.addProduct.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     // Photo Picker (galería)
     val pickImageLauncher = rememberLauncherForActivityResult(
@@ -55,6 +67,31 @@ fun AddProductScreenVm(
         if (uri != null) {
             vm.onAddProductChange(imageUri = uri.toString())
         }
+    }
+
+    // Cámara: tomar foto y guardarla en un archivo temporal vía FileProvider
+    var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) {
+            val current = cameraUri
+            if (current != null) {
+                vm.onAddProductChange(imageUri = current.toString())
+            }
+        }
+    }
+
+    fun launchCamera() {
+        val imagesDir = File(context.cacheDir, "images").apply { mkdirs() }
+        val photoFile = File(imagesDir, "camera_${System.currentTimeMillis()}.jpg")
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            photoFile
+        )
+        cameraUri = uri
+        takePictureLauncher.launch(uri)
     }
 
     // Cuando 'saveSuccess' se vuelve true, resetea el estado y vuelve atrás
@@ -79,10 +116,11 @@ fun AddProductScreenVm(
         onNameChange = { vm.onAddProductChange(name = it) },
         onDescriptionChange = { vm.onAddProductChange(description = it) },
         onPriceChange = { vm.onAddProductChange(price = it) },
-        onSelectImage = {
+        onSelectImageGallery = {
             pickImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
         },
-        onSubmit = { vm.saveProduct() },
+        onCapturePhoto = { launchCamera() },
+        onSubmit = { vm.saveProduct(context) },
         onBack = onNavigateBack // Pasa la acción de "volver"
     )
 }
@@ -99,7 +137,8 @@ fun AddProductScreen(
     onNameChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onPriceChange: (String) -> Unit,
-    onSelectImage: () -> Unit,
+    onSelectImageGallery: () -> Unit,
+    onCapturePhoto: () -> Unit,
     onSubmit: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -114,7 +153,7 @@ fun AddProductScreen(
                 ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 }
             )
@@ -172,13 +211,22 @@ fun AddProductScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            // --- Botón Seleccionar Imagen ---
-            OutlinedButton(
-                onClick = onSelectImage,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                Text("Seleccionar Imagen")
+            // --- Botones Imagen: Galería y Cámara ---
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = onSelectImageGallery,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                    Text("Galería")
+                }
+                OutlinedButton(
+                    onClick = onCapturePhoto,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+                    Text("Cámara")
+                }
             }
             if (imageError != null) {
                 Text(imageError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)

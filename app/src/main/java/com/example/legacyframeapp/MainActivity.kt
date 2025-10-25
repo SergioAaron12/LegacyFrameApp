@@ -9,10 +9,12 @@ import com.example.legacyframeapp.ui.theme.UINavegacionTheme
 import androidx.compose.material3.Surface // Surface sigue siendo necesario
 import androidx.compose.material3.MaterialTheme // Necesario para acceder a colorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel // Para obtener el ViewModel
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 // Importaciones de tu capa de datos y navegación
 import com.example.legacyframeapp.data.local.database.AppDatabase
 import com.example.legacyframeapp.data.repository.UserRepository
@@ -22,6 +24,9 @@ import com.example.legacyframeapp.ui.viewmodel.AuthViewModelFactory
 import com.example.legacyframeapp.data.repository.ProductRepository
 import com.example.legacyframeapp.data.repository.CuadroRepository
 import com.example.legacyframeapp.data.repository.CartRepository
+import com.example.legacyframeapp.data.local.storage.UserPreferences
+import com.example.legacyframeapp.data.repository.OrderRepository
+import com.example.legacyframeapp.data.local.order.OrderDao
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,13 +64,21 @@ fun AppRoot() {
     val cartDao = db.cartDao()
     val cartRepository = CartRepository(cartDao)
 
+    val userPrefs = UserPreferences(context)
+
+    // Repositorio de órdenes (historial de compras)
+    val orderDao = try { db.orderDao() } catch (e: Exception) { null }
+    val orderRepository = orderDao?.let { OrderRepository(it) }
+
     // Crea el ViewModel usando la Factory (AHORA PASAMOS AMBOS REPOS)
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModelFactory(
             userRepository = userRepository,
             productRepository = productRepository, // <--- AÑADIR ESTO
             cuadroRepository = cuadroRepository,
-            cartRepository = cartRepository
+            cartRepository = cartRepository,
+            userPreferences = userPrefs,
+            orderRepository = orderRepository
         )
     )
     // ------------------------------------
@@ -73,7 +86,8 @@ fun AppRoot() {
     val navController = rememberNavController()
 
     // ... (El resto de tu UINavegacionTheme sigue igual) ...
-    UINavegacionTheme {
+    val darkMode by authViewModel.darkMode.collectAsStateWithLifecycle()
+    UINavegacionTheme(darkTheme = darkMode) {
         Surface(color = MaterialTheme.colorScheme.background) {
             // Prefetch de imágenes remotas para tenerlas locales
             LaunchedEffect(Unit) {

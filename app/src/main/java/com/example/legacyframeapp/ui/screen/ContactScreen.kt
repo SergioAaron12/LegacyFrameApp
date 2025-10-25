@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -70,25 +72,35 @@ fun ContactScreen() {
 
         Spacer(Modifier.height(8.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            // WhatsApp
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            // WhatsApp (estilo del sitio)
             Button(onClick = {
                 val text = "Hola, soy $name. ${if (message.isNotBlank()) "Mensaje: $message" else ""}"
                 val url = "https://api.whatsapp.com/send?phone=56227916878&text=" + Uri.encode(text)
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 context.startActivity(intent)
-            }) {
-                Icon(Icons.Default.Chat, contentDescription = null)
+            }, modifier = Modifier
+                .height(40.dp)
+                .weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = androidx.compose.ui.graphics.Color(0xFF25D366),
+                    contentColor = androidx.compose.ui.graphics.Color.White
+                )
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
                 Spacer(Modifier.width(6.dp))
                 Text("WhatsApp")
             }
 
-            // Llamar
-            Button(onClick = {
+            // Llamar (más compacto, consistente con otros botones)
+            OutlinedButton(onClick = {
                 val intent = Intent(Intent.ACTION_DIAL)
                 intent.data = Uri.parse("tel:56227916878")
                 context.startActivity(intent)
-            }) {
+            }, modifier = Modifier
+                .height(40.dp)
+                .weight(1f)
+            ) {
                 Icon(Icons.Default.Call, contentDescription = null)
                 Spacer(Modifier.width(6.dp))
                 Text("Llamar")

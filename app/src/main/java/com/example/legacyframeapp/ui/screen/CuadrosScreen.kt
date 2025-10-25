@@ -29,6 +29,8 @@ import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -53,6 +55,8 @@ import com.example.legacyframeapp.data.local.cuadro.CuadroEntity
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import java.io.File
 
 @Composable
 fun CuadrosScreenVm(
@@ -200,6 +204,8 @@ private fun CuadroCard(
     onAddToCart: () -> Unit,
     onContactWhatsApp: () -> Unit
 ) {
+    val context = LocalContext.current
+    val placeholder = rememberVectorPainter(image = Icons.Default.Photo)
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
@@ -209,22 +215,24 @@ private fun CuadroCard(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Imagen del cuadro con Coil si hay imagePath; de lo contrario, placeholder
-            if (cuadro.imagePath.isNotBlank()) {
-                AsyncImage(
-                    model = cuadro.imagePath,
-                    contentDescription = cuadro.title,
-                    modifier = Modifier.size(100.dp),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Icon(
-                    imageVector = Icons.Default.Photo,
-                    contentDescription = "Imagen del cuadro",
-                    modifier = Modifier.size(100.dp),
-                    tint = Color.Gray
-                )
+            // Imagen del cuadro con Coil resolviendo URL/archivo/recurso; placeholder en ausencia
+            val model: Any? = when {
+                cuadro.imagePath.isNotBlank() && cuadro.imagePath.startsWith("http") -> cuadro.imagePath
+                cuadro.imagePath.isNotBlank() && File(cuadro.imagePath).exists() -> File(cuadro.imagePath)
+                cuadro.imagePath.isNotBlank() -> {
+                    val resId = context.resources.getIdentifier(cuadro.imagePath, "drawable", context.packageName)
+                    if (resId != 0) resId else null
+                }
+                else -> null
             }
+            AsyncImage(
+                model = model,
+                contentDescription = cuadro.title,
+                modifier = Modifier.size(100.dp),
+                contentScale = ContentScale.Crop,
+                placeholder = placeholder,
+                error = placeholder
+            )
 
             Spacer(Modifier.width(16.dp))
 
@@ -236,6 +244,17 @@ private fun CuadroCard(
                     text = cuadro.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(4.dp))
+                // Badge de categoría similar a Molduras
+                val (badgeBg, badgeFg) = categoryColors(cuadro.category)
+                AssistChip(
+                    onClick = {},
+                    label = { Text(cuadro.category.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }) },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = badgeBg,
+                        labelColor = badgeFg
+                    )
                 )
                 Spacer(Modifier.height(4.dp))
                 
@@ -307,5 +326,17 @@ private fun CuadroCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun categoryColors(category: String): Pair<Color, Color> {
+    return when (category.lowercase()) {
+        "grecas" -> Color(0xFF8B5C2A) to Color.White // primary
+        "rusticas" -> Color(0xFF0DCAF0) to Color(0xFF07323A) // info
+        "naturales" -> Color(0xFF198754) to Color.White // success
+        "nativas" -> Color(0xFF6C757D) to Color.White // secondary
+        "finger-joint", "fingerjoint", "finger_joint" -> Color(0xFFFFC107) to Color(0xFF3A2E00) // warning
+        else -> MaterialTheme.colorScheme.secondary to MaterialTheme.colorScheme.onSecondary
     }
 }

@@ -38,6 +38,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 
 // --- Runtime y Composable ---
 import androidx.compose.runtime.Composable
@@ -57,6 +59,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 // --- Librerías (Coil) ---
 import coil.compose.AsyncImage
+import androidx.compose.ui.graphics.toArgb
 
 // --- Lógica del Dominio y Datos ---
 import com.example.legacyframeapp.data.local.product.ProductEntity
@@ -79,7 +82,7 @@ fun MoldurasScreenVm(
         products = products,
         isAdmin = session.isAdmin,
         onAddProduct = onAddProduct,
-        onAddToCart = vm::addToCart
+        onAddToCart = vm::addProductToCart
     )
 }
 
@@ -166,12 +169,6 @@ private fun ProductCard(
 ) {
 
     val context = LocalContext.current
-    val imageFile = if (product.imagePath.isNotBlank()) {
-        ImageStorageHelper.getImageFile(context, product.imagePath)
-    } else {
-        null
-    }
-
     val placeholderPainter = rememberVectorPainter(image = Icons.Default.Photo)
 
     Card(
@@ -186,8 +183,18 @@ private fun ProductCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
+            // Resolver modelo de imagen: URL, archivo, drawable por nombre o almacenamiento interno
+            val model: Any? = when {
+                product.imagePath.isNotBlank() && product.imagePath.startsWith("http") -> product.imagePath
+                product.imagePath.isNotBlank() && java.io.File(product.imagePath).exists() -> java.io.File(product.imagePath)
+                product.imagePath.isNotBlank() -> {
+                    val resId = context.resources.getIdentifier(product.imagePath, "drawable", context.packageName)
+                    if (resId != 0) resId else ImageStorageHelper.getImageFile(context, product.imagePath)
+                }
+                else -> null
+            }
             AsyncImage(
-                model = imageFile,
+                model = model,
                 contentDescription = product.name,
                 modifier = Modifier
                     .size(80.dp)
@@ -208,6 +215,17 @@ private fun ProductCard(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(4.dp))
+                // Badge de categoría (colores inspirados en Bootstrap del sitio)
+                val (badgeBg, badgeFg) = categoryColors(product.category)
+                AssistChip(
+                    onClick = {},
+                    label = { Text(product.category.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }) },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = badgeBg,
+                        labelColor = badgeFg
+                    )
+                )
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text = product.description,
                     style = MaterialTheme.typography.bodySmall,
@@ -224,5 +242,19 @@ private fun ProductCard(
                 // ---------------------------------
             }
         }
+    }
+}
+
+@Composable
+private fun categoryColors(category: String): Pair<Color, Color> {
+    // Paleta basada en Bootstrap usada por el sitio
+    // primary #8B5C2A, info #0dcaf0, success #198754, secondary #6c757d, warning #ffc107
+    return when (category.lowercase()) {
+        "grecas" -> Color(0xFF8B5C2A) to Color.White // primary
+        "rusticas" -> Color(0xFF0DCAF0) to Color(0xFF07323A) // info
+        "naturales" -> Color(0xFF198754) to Color.White // success
+        "nativas" -> Color(0xFF6C757D) to Color.White // secondary
+        "finger-joint", "fingerjoint", "finger_joint" -> Color(0xFFFFC107) to Color(0xFF3A2E00) // warning
+        else -> MaterialTheme.colorScheme.secondary to MaterialTheme.colorScheme.onSecondary
     }
 }

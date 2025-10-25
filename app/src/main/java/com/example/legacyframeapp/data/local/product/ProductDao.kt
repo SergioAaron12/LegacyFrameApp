@@ -38,4 +38,12 @@ interface ProductDao {
     // (Opcional) Una función para buscar por ID, útil para la pantalla de "Editar"
     @Query("SELECT * FROM products WHERE id = :id LIMIT 1")
     suspend fun getProductById(id: Long): ProductEntity?
+
+    // Buscar por nombre (para actualizaciones puntuales por catálogo)
+    @Query("SELECT * FROM products WHERE name = :name LIMIT 1")
+    suspend fun getProductByName(name: String): ProductEntity?
+
+    // Eliminar todos los productos (para reemplazar catálogo)
+    @Query("DELETE FROM products")
+    suspend fun deleteAll()
 }

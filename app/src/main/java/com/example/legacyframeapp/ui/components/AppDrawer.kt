@@ -4,11 +4,11 @@ import androidx.compose.material.icons.Icons // Íconos Material
 import androidx.compose.material.icons.filled.Home // Ícono Home
 import androidx.compose.material.icons.filled.AccountCircle // Ícono Login
 import androidx.compose.material.icons.filled.Person // Ícono Registro
-import androidx.compose.material.icons.filled.ListAlt // Icono para Molduras
-import androidx.compose.material.icons.filled.Call // Icono para Contacto
-import androidx.compose.material.icons.filled.Logout // Icono para Cerrar Sesión
+import androidx.compose.material.icons.automirrored.filled.ListAlt // Icono para Molduras
+import androidx.compose.material.icons.automirrored.filled.Logout // Icono para Cerrar Sesión
 import androidx.compose.material.icons.filled.Photo // Ícono para Cuadros
 import androidx.compose.material.icons.filled.ShoppingCart // Ícono para Carrito
+import androidx.compose.material.icons.filled.AdminPanelSettings // Ícono para Admin
 import androidx.compose.material3.Icon // Ícono en ítem del drawer
 import androidx.compose.material3.NavigationDrawerItem // Ítem seleccionable
 import androidx.compose.material3.NavigationDrawerItemDefaults // Defaults de estilo
@@ -56,14 +56,12 @@ fun loggedOutDrawerItems(
     onRegister: () -> Unit,
     onCuadros: () -> Unit,
     onMolduras: () -> Unit,
-    onCart: () -> Unit,
-    onContact: () -> Unit
+    onCart: () -> Unit
 ): List<DrawerItem> = listOf(
     DrawerItem("Home", Icons.Filled.Home, onHome),
-    DrawerItem("Molduras", Icons.Filled.ListAlt, onMolduras),
+    DrawerItem("Molduras", Icons.AutoMirrored.Filled.ListAlt, onMolduras),
     DrawerItem("Cuadros", Icons.Filled.Photo, onCuadros),
     DrawerItem("Carrito", Icons.Filled.ShoppingCart, onCart),
-    DrawerItem("Contacto", Icons.Filled.Call, onContact),
     DrawerItem("Login", Icons.Filled.AccountCircle, onLogin),
     DrawerItem("Registro", Icons.Filled.Person, onRegister)
 )
@@ -74,14 +72,15 @@ fun loggedInDrawerItems(
     onMolduras: () -> Unit, // <-- Nueva acción
     onCuadros: () -> Unit,   // <-- Nueva acción
     onCart: () -> Unit,      // <-- Nueva acción
-    onContact: () -> Unit,   // <-- Nueva acción
+    onAdmin: (() -> Unit)? = null,
     // (Aquí podrías añadir "onProfile" en el futuro)
     onLogout: () -> Unit   // <-- Nueva acción
 ): List<DrawerItem> = listOf(
     DrawerItem("Home", Icons.Filled.Home, onHome),
-    DrawerItem("Molduras", Icons.Filled.ListAlt, onMolduras), // <-- NUEVO ÍTEM
+    DrawerItem("Molduras", Icons.AutoMirrored.Filled.ListAlt, onMolduras), // <-- NUEVO ÍTEM
     DrawerItem("Cuadros", Icons.Filled.Photo, onCuadros), // <-- NUEVO ÍTEM
     DrawerItem("Carrito", Icons.Filled.ShoppingCart, onCart), // <-- NUEVO ÍTEM
-    DrawerItem("Contacto", Icons.Filled.Call, onContact), // <-- NUEVO ÍTEM
-    DrawerItem("Cerrar Sesión", Icons.Filled.Logout, onLogout) // <-- NUEVO ÍTEM
+    // Inserta Admin si el callback no es nulo
+    *listOfNotNull(onAdmin?.let { DrawerItem("Administrador", Icons.Filled.AdminPanelSettings, it) }).toTypedArray(),
+    DrawerItem("Cerrar Sesión", Icons.AutoMirrored.Filled.Logout, onLogout) // <-- NUEVO ÍTEM
 )

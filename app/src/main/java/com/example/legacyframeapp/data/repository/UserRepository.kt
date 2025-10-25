@@ -4,6 +4,7 @@ import com.example.legacyframeapp.data.local.user.UserDao
 import com.example.legacyframeapp.data.local.user.UserEntity
 
 // Constantes para valores por defecto (asegúrate que coincidan con tu BD Oracle)
+private const val ADMIN_ROL_ID = 1
 private const val CLIENTE_ROL_ID = 2
 private const val ACTIVO_ESTADO_ID = 1
 
@@ -11,9 +12,43 @@ class UserRepository(
     private val userDao: UserDao
 ) {
 
-    // Login (sin cambios por ahora)
+    // Login (con soporte explícito para credenciales de administrador)
     suspend fun login(email: String, password: String): Result<UserEntity> {
-        val user = userDao.getByEmail(email.trim().lowercase())
+        val normalizedEmail = email.trim().lowercase()
+
+        // Regla explícita: Admin@legacyframes.cl con contraseña Admin123! es administrador
+        if (normalizedEmail == "admin@legacyframes.cl" && password == "Admin123!") {
+            // Asegura que exista el usuario admin en BD; si no, créalo
+            val existing = userDao.getByEmail(normalizedEmail)
+            if (existing != null) {
+                // Si existe, devuélvelo tal cual (AuthViewModel usará rolId==1 para isAdmin)
+                return Result.success(existing)
+            } else {
+                // Crear y devolver el usuario admin
+                val admin = UserEntity(
+                    nombre = "Admin",
+                    apellido = "Legacy",
+                    phone = 12345678,
+                    rut = "11111111",
+                    dv = "1",
+                    email = normalizedEmail,
+                    password = password,
+                    rolId = ADMIN_ROL_ID,
+                    estadoId = ACTIVO_ESTADO_ID
+                )
+                return try {
+                    userDao.insert(admin)
+                    val inserted = userDao.getByEmail(normalizedEmail)
+                    if (inserted != null) Result.success(inserted)
+                    else Result.failure(IllegalStateException("No se pudo crear el administrador"))
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
+            }
+        }
+
+        // Login normal
+        val user = userDao.getByEmail(normalizedEmail)
         return if (user != null && user.password == password) {
             Result.success(user)
         } else {

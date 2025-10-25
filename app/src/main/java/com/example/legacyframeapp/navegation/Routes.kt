@@ -3,6 +3,7 @@ package com.example.legacyframeapp.navegation
 // Clase sellada para rutas: evita "strings mágicos" y facilita refactors
 sealed class Route(val path: String) {
     data object Home      : Route("home")
+    data object Profile   : Route("profile")
     data object Login     : Route("login")
     data object Register  : Route("register")
     data object Molduras  : Route("molduras")
@@ -10,6 +11,12 @@ sealed class Route(val path: String) {
     data object Contact   : Route("contact")
     data object Cart      : Route("cart")
     data object AddProduct: Route("add_product")
+    data object Admin     : Route("admin")
+    data object ChangeProductImage : Route("change_product_image")
+    data object DeleteProduct : Route("delete_product")
+    data object Settings  : Route("settings")
+    data object Purchases : Route("purchases")
+    data object Terms     : Route("terms")
 }
 
 /*

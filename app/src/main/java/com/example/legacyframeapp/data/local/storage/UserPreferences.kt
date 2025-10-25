@@ -13,6 +13,7 @@ val Context.dataStore by preferencesDataStore("user_prefs")
 class UserPreferences (private val context: Context){
     //clave boolean para manejar el estado del login
     private val isLoggedInKey = booleanPreferencesKey("is_logged_key")
+    private val darkModeKey = booleanPreferencesKey("dark_mode_key")
 
     //funcion para setear el valor de la variable
     suspend fun setLoggedIn(value: Boolean){
@@ -20,9 +21,20 @@ class UserPreferences (private val context: Context){
             prefs[isLoggedInKey] = value
         }
     }
+
+    suspend fun setDarkMode(enabled: Boolean){
+        context.dataStore.edit { prefs ->
+            prefs[darkModeKey] = enabled
+        }
+    }
     //exposicion del dataStore
     val isLoggedIn: Flow<Boolean> = context.dataStore.data
         .map { prefs ->
             prefs[isLoggedInKey] ?: false
+        }
+
+    val isDarkMode: Flow<Boolean> = context.dataStore.data
+        .map { prefs ->
+            prefs[darkModeKey] ?: false
         }
 }

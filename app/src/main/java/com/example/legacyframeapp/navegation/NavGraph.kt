@@ -21,6 +21,7 @@ import com.example.legacyframeapp.ui.screen.MoldurasScreenVm // NUEVO
 import com.example.legacyframeapp.ui.screen.CuadrosScreenVm // NUEVO
 
 import com.example.legacyframeapp.ui.components.AppTopBar // Barra superior
+import com.example.legacyframeapp.ui.components.AppBottomBar
 import com.example.legacyframeapp.ui.components.AppDrawer // Drawer composable
 import com.example.legacyframeapp.ui.screen.HomeScreen // Pantalla Home
 import com.example.legacyframeapp.ui.screen.LoginScreenVm // Pantalla Login
@@ -29,6 +30,14 @@ import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import com.example.legacyframeapp.ui.screen.AddProductScreenVm
 import com.example.legacyframeapp.ui.screen.CartScreenVm
 import com.example.legacyframeapp.ui.screen.ContactScreen
+import com.example.legacyframeapp.ui.screen.AdminScreenVm
+import com.example.legacyframeapp.ui.screen.ChangeProductImageScreenVm
+import com.example.legacyframeapp.ui.screen.DeleteProductScreenVm
+import com.example.legacyframeapp.ui.screen.ProfileScreenVm
+import com.example.legacyframeapp.ui.screen.SettingsScreenVm
+import com.example.legacyframeapp.ui.screen.PurchasesScreenVm
+import com.example.legacyframeapp.ui.screen.TermsScreen
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 @Composable
 fun AppNavGraph(
@@ -55,6 +64,9 @@ fun AppNavGraph(
     val goRegister: () -> Unit = {
         navController.navigate(Route.Register.path) { launchSingleTop = true }
     }
+    val goProfile: () -> Unit = {
+        navController.navigate(Route.Profile.path) { launchSingleTop = true }
+    }
     // --- NUEVAS ACCIONES ---
     val goMolduras: () -> Unit = {
         navController.navigate(Route.Molduras.path) { launchSingleTop = true }
@@ -68,6 +80,15 @@ fun AppNavGraph(
     val goContact: () -> Unit = {
         navController.navigate(Route.Contact.path) { launchSingleTop = true }
     }
+    val goAdmin: () -> Unit = {
+        navController.navigate(Route.Admin.path) { launchSingleTop = true }
+    }
+    val goChangeProductImage: () -> Unit = {
+        navController.navigate(Route.ChangeProductImage.path) { launchSingleTop = true }
+    }
+    val goDeleteProduct: () -> Unit = {
+        navController.navigate(Route.DeleteProduct.path) { launchSingleTop = true }
+    }
     // --- ACCIÓN PARA VOLVER ATRÁS ---
     val goBack: () -> Unit = {
         navController.popBackStack()
@@ -78,6 +99,9 @@ fun AppNavGraph(
         navController.navigate(Route.AddProduct.path) {
             launchSingleTop = true
         }
+    }
+    val goSettings: () -> Unit = {
+        navController.navigate(Route.Settings.path) { launchSingleTop = true }
     }
 
     val doLogout: () -> Unit = {
@@ -108,7 +132,7 @@ fun AppNavGraph(
                         onMolduras = { closeDrawer(); goMolduras() },
                         onCuadros = { closeDrawer(); goCuadros() },
                         onCart = { closeDrawer(); goCart() },
-                        onContact = { closeDrawer(); goContact() },
+                        onAdmin = if (session.isAdmin) ({ closeDrawer(); goAdmin() }) else null,
                         onLogout = { closeDrawer(); doLogout() }
                     )
                 )
@@ -122,8 +146,7 @@ fun AppNavGraph(
                         onRegister = { closeDrawer(); goRegister() },
                         onCuadros = { closeDrawer(); goCuadros() },
                         onMolduras = { closeDrawer(); goMolduras() },
-                        onCart = { closeDrawer(); goCart() },
-                        onContact = { closeDrawer(); goContact() }
+                        onCart = { closeDrawer(); goCart() }
                     )
                 )
             }
@@ -139,6 +162,28 @@ fun AppNavGraph(
                     cartCount = cartCount,
                     onOpenCart = goCart
                 )
+            },
+            bottomBar = {
+                val backStackEntry by navController.currentBackStackEntryAsState()
+                val route = backStackEntry?.destination?.route
+                // Ocultar en pantallas de flujo o detalle
+                val hideOn = setOf(
+                    Route.Cart.path,
+                    Route.Login.path,
+                    Route.Register.path,
+                    Route.Admin.path,
+                    Route.AddProduct.path,
+                    Route.ChangeProductImage.path,
+                    Route.DeleteProduct.path
+                )
+                if (route !in hideOn) {
+                    AppBottomBar(
+                        currentRoute = route,
+                        onHome = goHome,
+                        onProfile = goProfile,
+                        onSettings = goSettings
+                    )
+                }
             }
         ) { innerPadding ->
             NavHost(
@@ -153,8 +198,16 @@ fun AppNavGraph(
                         onGoRegister = goRegister,
                         onGoMolduras = goMolduras,
                         onGoCuadros = goCuadros,
-                        onGoContact = goContact,
                         products = products
+                    )
+                }
+                composable(Route.Profile.path) {
+                    ProfileScreenVm(
+                        vm = authViewModel,
+                        onGoLogin = goLogin,
+                        onGoRegister = goRegister,
+                        onGoSettings = { navController.navigate(Route.Settings.path) },
+                        onLogout = doLogout
                     )
                 }
                 composable(Route.Login.path) {
@@ -196,11 +249,49 @@ fun AppNavGraph(
                 composable(Route.Contact.path) {
                     ContactScreen()
                 }
+                composable(Route.Settings.path) {
+                    SettingsScreenVm(
+                        vm = authViewModel,
+                        onGoPurchases = { navController.navigate(Route.Purchases.path) },
+                        onGoTerms = { navController.navigate(Route.Terms.path) },
+                        onGoContact = { navController.navigate(Route.Contact.path) }
+                    )
+                }
+                composable(Route.Purchases.path) {
+                    PurchasesScreenVm(vm = authViewModel)
+                }
+                composable(Route.Terms.path) {
+                    TermsScreen()
+                }
 
                 composable(Route.AddProduct.path) {
                     AddProductScreenVm(
                         vm = authViewModel,
                         onNavigateBack = goBack // <--- PASAR ACCIÓN "VOLVER"
+                    )
+                }
+
+                composable(Route.Admin.path) {
+                    AdminScreenVm(
+                        vm = authViewModel,
+                        onGoAddProduct = goAddProduct,
+                        onGoChangeImage = goChangeProductImage,
+                        onGoDeleteProduct = goDeleteProduct,
+                        onBack = goBack
+                    )
+                }
+
+                composable(Route.ChangeProductImage.path) {
+                    ChangeProductImageScreenVm(
+                        vm = authViewModel,
+                        onNavigateBack = goBack
+                    )
+                }
+
+                composable(Route.DeleteProduct.path) {
+                    DeleteProductScreenVm(
+                        vm = authViewModel,
+                        onNavigateBack = goBack
                     )
                 }
             }

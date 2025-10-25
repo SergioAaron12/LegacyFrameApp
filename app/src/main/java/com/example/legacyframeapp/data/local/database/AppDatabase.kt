@@ -12,6 +12,8 @@ import com.example.legacyframeapp.data.local.cuadro.CuadroDao
 import com.example.legacyframeapp.data.local.cuadro.CuadroEntity
 import com.example.legacyframeapp.data.local.cart.CartItemEntity
 import com.example.legacyframeapp.data.local.cart.CartDao
+import com.example.legacyframeapp.data.local.order.OrderEntity
+import com.example.legacyframeapp.data.local.order.OrderDao
 // -------------------------------
 import com.example.legacyframeapp.data.local.user.UserDao
 import com.example.legacyframeapp.data.local.user.UserEntity
@@ -29,9 +31,10 @@ private const val ACTIVO_ESTADO_ID = 1
         UserEntity::class,
         ProductEntity::class,  // <--- 1. ASEGÚRATE DE AÑADIR ESTO
         CuadroEntity::class,   // <--- AÑADIR CUADROS
-        CartItemEntity::class  // <--- Carrito
+        CartItemEntity::class,  // <--- Carrito
+        OrderEntity::class      // <--- Órdenes / compras
     ],
-    version = 5,              // bump version for category in products
+    version = 6,              // bump version for orders table
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -42,6 +45,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun productDao(): ProductDao
     abstract fun cuadroDao(): CuadroDao
     abstract fun cartDao(): CartDao
+    abstract fun orderDao(): OrderDao
     // ---------------------------------------------------------
 
     companion object {

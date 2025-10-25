@@ -9,7 +9,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Category
@@ -43,7 +42,6 @@ fun HomeScreen(
     onGoRegister: () -> Unit,
     onGoMolduras: () -> Unit,
     onGoCuadros: () -> Unit,
-    onGoContact: () -> Unit,
     products: List<ProductEntity>
 ) {
     // Destacados: toma hasta 6 productos del catálogo
@@ -100,11 +98,9 @@ fun HomeScreen(
                         modifier = Modifier.padding(vertical = 24.dp, horizontal = 16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally // Centra el texto
                     ) {
-                        Text(
-                            "Legacy Frames",
-                            style = MaterialTheme.typography.headlineMedium, // Tamaño de título
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF8B5C2A) // Color primario (--primary-color)
+                        // Logo de marca en lugar del texto
+                        com.example.legacyframeapp.ui.components.BrandLogoLarge(
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp)) // Espacio vertical pequeño
                         Text(
@@ -126,8 +122,7 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(8.dp))
             QuickActionsRow(
                 onGoMolduras = onGoMolduras,
-                onGoCuadros = onGoCuadros,
-                onGoContact = onGoContact
+                onGoCuadros = onGoCuadros
             )
         }
 
@@ -162,60 +157,7 @@ fun HomeScreen(
             }
         }
 
-        // --- 5. Call to Action (Llamado a la acción) ---
-        item {
-            Spacer(modifier = Modifier.height(40.dp)) // Espacio antes de la sección
-            // Caja con fondo de color primario
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color(0xFF8B5C2A)) // Color primario (--primary-color)
-                    .padding(vertical = 32.dp, horizontal = 16.dp) // Espaciado interno
-            ) {
-                // Contenido centrado
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "¿Listo para Enmarcar tu Historia?",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = Color.White, // Texto blanco
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    // Fila para los botones
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        // Botón Contactar (Fondo blanco, texto primario)
-                        Button(
-                            onClick = onGoContact,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White, // Fondo blanco
-                                contentColor = Color(0xFF8B5C2A) // Texto color primario
-                            )
-                        ) {
-                            Icon(Icons.Default.Call, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Contactar")
-                        }
-                        // Botón Únete (Borde blanco, texto blanco)
-                        OutlinedButton(
-                            onClick = onGoRegister, // Navega a Registro
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White), // Texto blanco
-                            // Definición del borde
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = androidx.compose.ui.graphics.SolidColor(Color.White), // Borde blanco
-                                width = 1.5.dp // Grosor del borde
-                            )
-                        ) {
-                            Icon(Icons.Default.PersonAdd, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Únete")
-                        }
-                    }
-                }
-            }
-        }
+        // (CTA inferior eliminado a solicitud del usuario)
     }
 }
 
@@ -234,15 +176,15 @@ fun SectionTitle(title: String, modifier: Modifier = Modifier) {
             text = title,
             style = MaterialTheme.typography.titleLarge, // Tamaño de título
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF5C3A1A) // Color oscuro (--dark-color)
+            color = MaterialTheme.colorScheme.onSurface
         )
         // Línea decorativa debajo del título
-        Divider(
+        HorizontalDivider(
             modifier = Modifier
                 .width(60.dp) // Ancho de la línea
                 .padding(top = 4.dp), // Separación del texto
             thickness = 3.dp, // Grosor
-            color = Color(0xFFD4A574) // Color de acento (--accent-color)
+            color = MaterialTheme.colorScheme.tertiary
         )
     }
 }
@@ -312,7 +254,7 @@ fun ProductCardHome(product: ProductHome) {
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(Modifier.height(4.dp))
-                Text("$ ${product.price}", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF8B5C2A))
+                Text("$ ${product.price}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -321,8 +263,7 @@ fun ProductCardHome(product: ProductHome) {
 @Composable
 private fun QuickActionsRow(
     onGoMolduras: () -> Unit,
-    onGoCuadros: () -> Unit,
-    onGoContact: () -> Unit
+    onGoCuadros: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -330,15 +271,36 @@ private fun QuickActionsRow(
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        ActionChip(icon = Icons.Default.Category, label = "Molduras", onClick = onGoMolduras)
-        ActionChip(icon = Icons.Default.Collections, label = "Cuadros", onClick = onGoCuadros)
-        ActionChip(icon = Icons.Default.Call, label = "Contacto", onClick = onGoContact)
+        ActionChip(
+            icon = Icons.Default.Category,
+            label = "Molduras",
+            onClick = onGoMolduras,
+            modifier = Modifier.weight(1f)
+        )
+        ActionChip(
+            icon = Icons.Default.Collections,
+            label = "Cuadros",
+            onClick = onGoCuadros,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
 @Composable
-private fun ActionChip(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    OutlinedButton(onClick = onClick) {
+private fun ActionChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        modifier = modifier.height(48.dp),
+        colors = ButtonDefaults.filledTonalButtonColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+        )
+    ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(label)

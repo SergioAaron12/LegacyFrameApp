@@ -3,7 +3,8 @@ package com.example.legacyframeapp.ui.theme
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme // Solo usaremos tema claro
+import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.graphics.Color // Importa Color directamente
@@ -30,23 +31,36 @@ private val LightColorScheme = lightColorScheme(
     // Puedes definir más mapeos si los necesitas (surfaceVariant, outline, etc.)
 )
 
+private val DarkColorScheme = darkColorScheme(
+    primary = PrimaryBrown,
+    secondary = SecondaryBrown,
+    tertiary = AccentBrown,
+    background = Color(0xFF121212),
+    surface = DarkBrown,
+    onPrimary = White,
+    onSecondary = White,
+    onTertiary = White,
+    onBackground = White,
+    onSurface = White,
+    error = ErrorRed,
+    onError = White
+)
+
 // --- Función Composable del Tema ---
 // Esta es la función que envuelve tu app en MainActivity.kt
 @Composable
 fun UINavegacionTheme( // Mantenemos el nombre del ejemplo para compatibilidad
-    darkTheme: Boolean = isSystemInDarkTheme(), // No usaremos tema oscuro por ahora
+    darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit // El contenido de tu app se pasa aquí
 ) {
-    // Forzamos el uso de la paleta clara que definimos arriba
-    val colorScheme = LightColorScheme
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     val view = LocalView.current
     if (!view.isInEditMode) {
         // Efecto secundario para cambiar el color de la barra de estado del sistema (la de arriba del todo)
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = colorScheme.primary.toArgb() // Barra de estado café
-            // Íconos de la barra de estado (wifi, batería) claros (false) u oscuros (true)
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = false // Íconos claros
+            // Ajusta el contraste de iconos según tema
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 

@@ -37,4 +37,12 @@ class ProductRepository(
     suspend fun getProductById(id: Long): ProductEntity? {
         return productDao.getProductById(id)
     }
+
+    suspend fun getProductByName(name: String): ProductEntity? {
+        return productDao.getProductByName(name)
+    }
+
+    suspend fun deleteAll() {
+        productDao.deleteAll()
+    }
 }
