@@ -1,21 +1,28 @@
 package com.example.legacyframeapp
 
+import android.app.Application // <-- 1. AÑADIR IMPORT
+import android.app.NotificationChannel // <-- Para Notificaciones
+import android.app.NotificationManager // <-- Para Notificaciones
+import android.content.Context // <-- Para Notificaciones
+import android.os.Build // <-- Para Notificaciones
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-// Importa TU tema personalizado
 import com.example.legacyframeapp.ui.theme.UINavegacionTheme
-import androidx.compose.material3.Surface // Surface sigue siendo necesario
-import androidx.compose.material3.MaterialTheme // Necesario para acceder a colorScheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.viewmodel.compose.viewModel // Para obtener el ViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.LaunchedEffect
+<<<<<<< HEAD
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 // Importaciones de tu capa de datos y navegación
+=======
+>>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
 import com.example.legacyframeapp.data.local.database.AppDatabase
 import com.example.legacyframeapp.data.repository.UserRepository
 import com.example.legacyframeapp.navegation.AppNavGraph
@@ -31,39 +38,37 @@ import com.example.legacyframeapp.data.local.order.OrderDao
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge() // Habilita pantalla completa (edge-to-edge)
+        enableEdgeToEdge()
+
+        // --- 2. AÑADIR ESTA LÍNEA (para el canal de notificación) ---
+        createNotificationChannel(this)
+
         setContent {
-            AppRoot() // Llama a la función Composable raíz
+            AppRoot()
         }
     }
 }
 
-// Composable raíz que configura el ViewModel y la Navegación
 @Composable
 fun AppRoot() {
-    // --- Inicialización del ViewModel ---
     val context = LocalContext.current
+
+    // --- 3. OBTENER APPLICATION ---
+    val application = context.applicationContext as Application
+
     val db = AppDatabase.getDatabase(context)
 
-    // DAO de Usuario (existente)
+    // DAOs y Repos
     val userDao = db.userDao()
     val userRepository = UserRepository(userDao)
-
-    // --- AÑADIR ESTO ---
-    // DAO de Producto (nuevo)
     val productDao = db.productDao()
-    // Repositorio de Producto (nuevo)
     val productRepository = ProductRepository(productDao)
-    // ---------------------
-
-    // DAO de Cuadros
     val cuadroDao = db.cuadroDao()
     val cuadroRepository = CuadroRepository(cuadroDao)
-
-    // DAO de Carrito
     val cartDao = db.cartDao()
     val cartRepository = CartRepository(cartDao)
 
+<<<<<<< HEAD
     val userPrefs = UserPreferences(context)
 
     // Repositorio de órdenes (historial de compras)
@@ -71,25 +76,32 @@ fun AppRoot() {
     val orderRepository = orderDao?.let { OrderRepository(it) }
 
     // Crea el ViewModel usando la Factory (AHORA PASAMOS AMBOS REPOS)
+=======
+    // --- 4. MODIFICAR LA CREACIÓN DE LA FACTORY ---
+>>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModelFactory(
+            application = application, // <-- PASAR APPLICATION PRIMERO
             userRepository = userRepository,
-            productRepository = productRepository, // <--- AÑADIR ESTO
+            productRepository = productRepository,
             cuadroRepository = cuadroRepository,
             cartRepository = cartRepository,
             userPreferences = userPrefs,
             orderRepository = orderRepository
         )
     )
-    // ------------------------------------
 
     val navController = rememberNavController()
 
+<<<<<<< HEAD
     // ... (El resto de tu UINavegacionTheme sigue igual) ...
     val darkMode by authViewModel.darkMode.collectAsStateWithLifecycle()
     UINavegacionTheme(darkTheme = darkMode) {
+=======
+    UINavegacionTheme {
+>>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
         Surface(color = MaterialTheme.colorScheme.background) {
-            // Prefetch de imágenes remotas para tenerlas locales
+            // Prefetch de imágenes (lógica de tu compañero)
             LaunchedEffect(Unit) {
                 authViewModel.prefetchProductImages(context.applicationContext)
             }
@@ -98,5 +110,22 @@ fun AppRoot() {
                 authViewModel = authViewModel
             )
         }
+    }
+}
+
+// --- 5. AÑADIR ESTA FUNCIÓN AL FINAL DEL ARCHIVO ---
+private fun createNotificationChannel(context: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val channelId = "purchase_notifications"
+        val name = "Notificaciones de Compra"
+        val descriptionText = "Canal para notificar compras exitosas."
+        val importance = NotificationManager.IMPORTANCE_HIGH
+
+        val channel = NotificationChannel(channelId, name, importance).apply {
+            description = descriptionText
+        }
+        val notificationManager: NotificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.createNotificationChannel(channel)
     }
 }
