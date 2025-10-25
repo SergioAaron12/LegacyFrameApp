@@ -79,7 +79,7 @@ fun MoldurasScreenVm(
         products = products,
         isAdmin = session.isAdmin,
         onAddProduct = onAddProduct,
-        onAddToCart = vm::addToCart
+        onAddToCart = vm::addProductToCart
     )
 }
 

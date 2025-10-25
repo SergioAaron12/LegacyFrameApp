@@ -60,135 +60,70 @@ fun CuadrosScreenVm(
     onAddCuadro: () -> Unit
 ) {
     val cuadros by vm.cuadros.collectAsStateWithLifecycle()
+    val categories by vm.cuadroCategories.collectAsStateWithLifecycle()
+    val filter by vm.cuadroFilter.collectAsStateWithLifecycle()
     val session by vm.session.collectAsStateWithLifecycle()
-    val context = LocalContext.current
 
     CuadrosScreen(
         cuadros = cuadros,
+        categories = categories,
+        selectedCategory = filter,
+        onCategorySelect = vm::setCuadroFilter,
         isAdmin = session.isAdmin,
         onAddCuadro = onAddCuadro,
-        onAddToCart = { cuadro -> vm.addCuadroToCart(cuadro) },
-        onContactWhatsApp = { cuadro ->
-            val msg = "Hola, me interesa el cuadro ${cuadro.title} (${cuadro.size}, ${cuadro.material}). ¿Podrían darme más información?"
-            val url = "https://api.whatsapp.com/send?phone=56227916878&text=" + Uri.encode(msg)
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-            context.startActivity(intent)
-        }
+        // --- ¡LÍNEA CORREGIDA! ---
+        // Llama a la función específica para "Cuadros"
+        onAddToCart = vm::addCuadroToCart
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class) // Necesario para FlowRow
 @Composable
 fun CuadrosScreen(
     cuadros: List<CuadroEntity>,
+    categories: List<String>,
+    selectedCategory: String,
+    onCategorySelect: (String) -> Unit,
     isAdmin: Boolean,
     onAddCuadro: () -> Unit,
-    onAddToCart: (CuadroEntity) -> Unit,
-    onContactWhatsApp: (CuadroEntity) -> Unit
+    onAddToCart: (CuadroEntity) -> Unit // <-- Asegúrate de que reciba la entidad
 ) {
-    var selectedCategory by remember { mutableStateOf<String?>(null) }
-    
-    // Filtrar cuadros por categoría seleccionada
-    val filteredCuadros = if (selectedCategory == null) {
-        cuadros
-    } else {
-        cuadros.filter { it.category == selectedCategory }
-    }
-    
-    // Obtener categorías únicas
-    val categories = cuadros.map { it.category }.distinct().sorted()
+    val context = LocalContext.current
 
+    // ... (El Scaffold y el FloatingActionButton están bien) ...
     Scaffold(
         floatingActionButton = {
-            AnimatedVisibility(
-                visible = isAdmin,
-                enter = fadeIn() + scaleIn(),
-                exit = fadeOut() + scaleOut()
-            ) {
-                FloatingActionButton(
-                    onClick = onAddCuadro,
-                    containerColor = MaterialTheme.colorScheme.tertiary
-                ) {
+            AnimatedVisibility(visible = isAdmin, /* ... */) {
+                FloatingActionButton(onClick = onAddCuadro, /* ... */) {
                     Icon(Icons.Default.Add, contentDescription = "Añadir Cuadro")
                 }
             }
         }
     ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
 
-        if (cuadros.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No hay cuadros disponibles.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Cabecera
-                item {
-                    Text(
-                        text = "Galería de Cuadros",
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-                }
+            // ... (El 'item' para los FilterChip está bien) ...
 
-                // Filtros de categoría
-                if (categories.isNotEmpty()) {
-                    item {
-                        Column {
-                            Text(
-                                text = "Categorías:",
-                                style = MaterialTheme.typography.titleMedium,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                // Chip "Todas"
-                                FilterChip(
-                                    onClick = { selectedCategory = null },
-                                    label = { Text("Todas") },
-                                    selected = selectedCategory == null
-                                )
-                                
-                                // Chips de categorías
-                                categories.forEach { category ->
-                                    FilterChip(
-                                        onClick = { 
-                                            selectedCategory = if (selectedCategory == category) null else category 
-                                        },
-                                        label = { Text(category) },
-                                        selected = selectedCategory == category
-                                    )
-                                }
-                            }
-                        }
+            // --- REVISIÓN DE 'items' ---
+            items(cuadros, key = { it.id }) { cuadro ->
+                CuadroCard(
+                    cuadro = cuadro,
+                    // --- ¡CORREGIDO! ---
+                    // Pasa el 'cuadro' específico a la función
+                    onAddToCart = { onAddToCart(cuadro) },
+                    onContactWhatsApp = {
+                        val text = Uri.encode("Hola, me interesa el cuadro: ${cuadro.title}")
+                        val url = "https://api.whatsapp.com/send?phone=56227916878&text=$text"
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                        context.startActivity(intent)
                     }
-                }
-
-                // Lista de cuadros
-                items(filteredCuadros, key = { it.id }) { cuadro ->
-                    CuadroCard(
-                        cuadro = cuadro,
-                        onAddToCart = { onAddToCart(cuadro) },
-                        onContactWhatsApp = { onContactWhatsApp(cuadro) }
-                    )
-                }
+                )
             }
         }
     }

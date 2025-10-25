@@ -1,48 +1,50 @@
 package com.example.legacyframeapp.navegation
-import androidx.compose.foundation.layout.padding // Para aplicar innerPadding
-import androidx.compose.material3.Scaffold // Estructura base con slots
-import androidx.compose.runtime.Composable // Marcador composable
-import androidx.compose.ui.Modifier // Modificador
-import androidx.navigation.NavHostController // Controlador de navegación
-import androidx.navigation.compose.NavHost // Contenedor de destinos
-import androidx.navigation.compose.composable // Declarar cada destino
-import kotlinx.coroutines.launch // Para abrir/cerrar drawer con corrutinas
 
-import androidx.compose.material3.ModalNavigationDrawer // Drawer lateral modal
-import androidx.compose.material3.rememberDrawerState // Estado del drawer
-import androidx.compose.material3.DrawerValue // Valores (Opened/Closed)
-import androidx.compose.runtime.rememberCoroutineScope // Alcance de corrutina
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import kotlinx.coroutines.launch
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.material3.DrawerValue
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
-import androidx.compose.runtime.getValue // Para 'by'
-import androidx.lifecycle.compose.collectAsStateWithLifecycle // Para el estado
-import com.example.legacyframeapp.ui.components.loggedInDrawerItems // NUEVO
-import com.example.legacyframeapp.ui.components.loggedOutDrawerItems // NUEVO
-import com.example.legacyframeapp.ui.screen.MoldurasScreenVm // NUEVO
-import com.example.legacyframeapp.ui.screen.CuadrosScreenVm // NUEVO
-
-import com.example.legacyframeapp.ui.components.AppTopBar // Barra superior
-import com.example.legacyframeapp.ui.components.AppDrawer // Drawer composable
-import com.example.legacyframeapp.ui.screen.HomeScreen // Pantalla Home
-import com.example.legacyframeapp.ui.screen.LoginScreenVm // Pantalla Login
-import com.example.legacyframeapp.ui.screen.RegisterScreenVm // Pantalla Registro
-import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
-import com.example.legacyframeapp.ui.screen.AddProductScreenVm
+// Tus imports de componentes y pantallas
+import com.example.legacyframeapp.ui.components.AppTopBar
+import com.example.legacyframeapp.ui.components.AppDrawer
+import com.example.legacyframeapp.ui.components.loggedInDrawerItems
+import com.example.legacyframeapp.ui.components.loggedOutDrawerItems // Asegúrate que esta función exista y esté actualizada
+import com.example.legacyframeapp.ui.screen.HomeScreen
+import com.example.legacyframeapp.ui.screen.LoginScreenVm
+import com.example.legacyframeapp.ui.screen.RegisterScreenVm
+import com.example.legacyframeapp.ui.screen.MoldurasScreenVm
+import com.example.legacyframeapp.ui.screen.CuadrosScreenVm
 import com.example.legacyframeapp.ui.screen.CartScreenVm
 import com.example.legacyframeapp.ui.screen.ContactScreen
+import com.example.legacyframeapp.ui.screen.AddProductScreenVm
+import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
     authViewModel: AuthViewModel
 ) {
-    // --- ESTADO DE SESIÓN (CLAVE PARA LA UI DINÁMICA) ---
+    // --- OBTENER ESTADOS DEL VIEWMODEL ---
     val session by authViewModel.session.collectAsStateWithLifecycle()
-    // ----------------------------------------------------
+    val cartItemCount by authViewModel.cartItemCount.collectAsStateWithLifecycle()
+    val products by authViewModel.products.collectAsStateWithLifecycle() // <-- AÑADIDO
+    // ------------------------------------
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // --- ACCIONES DE NAVEGACIÓN ---
+    // --- Acciones de navegación (sin cambios) ---
     val goHome: () -> Unit = {
         navController.navigate(Route.Home.path) {
             popUpTo(navController.graph.startDestinationId) { saveState = true }
@@ -55,7 +57,6 @@ fun AppNavGraph(
     val goRegister: () -> Unit = {
         navController.navigate(Route.Register.path) { launchSingleTop = true }
     }
-    // --- NUEVAS ACCIONES ---
     val goMolduras: () -> Unit = {
         navController.navigate(Route.Molduras.path) { launchSingleTop = true }
     }
@@ -68,39 +69,24 @@ fun AppNavGraph(
     val goContact: () -> Unit = {
         navController.navigate(Route.Contact.path) { launchSingleTop = true }
     }
-    // --- ACCIÓN PARA VOLVER ATRÁS ---
-    val goBack: () -> Unit = {
-        navController.popBackStack()
-    }
-
-    // --- ACCIÓN PARA IR A AÑADIR PRODUCTO ---
     val goAddProduct: () -> Unit = {
-        navController.navigate(Route.AddProduct.path) {
-            launchSingleTop = true
-        }
+        navController.navigate(Route.AddProduct.path) { launchSingleTop = true }
     }
-
+    val goBack: () -> Unit = { navController.popBackStack() }
     val doLogout: () -> Unit = {
-        authViewModel.logout() // Llama al ViewModel
-        goLogin() // Envía al usuario a Login
+        authViewModel.logout()
+        goLogin()
     }
-    // ----------------------
 
-    // Función para abrir el menú
-    val openDrawer: () -> Unit = {
-        scope.launch { drawerState.open() }
-    }
-    // Función para cerrar el menú
-    val closeDrawer: () -> Unit = {
-        scope.launch { drawerState.close() }
-    }
+    val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
+    val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
+    // ------------------------------------------
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        // --- CONTENIDO DINÁMICO DEL MENÚ ---
         drawerContent = {
+            // --- Lógica del menú lateral (sin cambios) ---
             if (session.isLoggedIn) {
-                // MENÚ LOGUEADO
                 AppDrawer(
                     currentRoute = null,
                     items = loggedInDrawerItems(
@@ -113,7 +99,6 @@ fun AppNavGraph(
                     )
                 )
             } else {
-                // MENÚ NO LOGUEADO
                 AppDrawer(
                     currentRoute = null,
                     items = loggedOutDrawerItems(
@@ -128,34 +113,34 @@ fun AppNavGraph(
                 )
             }
         }
-        // -----------------------------------
     ) {
         Scaffold(
-            // --- TOP BAR SIMPLIFICADA ---
             topBar = {
-                val cartCount by authViewModel.cartCount.collectAsStateWithLifecycle()
+                // --- Llamada a AppTopBar (ya estaba correcta) ---
                 AppTopBar(
                     onOpenDrawer = openDrawer,
-                    cartCount = cartCount,
-                    onOpenCart = goCart
+                    onOpenCart = goCart,
+                    cartItemCount = cartItemCount
                 )
             }
         ) { innerPadding ->
             NavHost(
                 navController = navController,
-                startDestination = Route.Home.path, // (Puedes cambiar a Login.path si prefieres)
+                startDestination = Route.Home.path,
                 modifier = Modifier.padding(innerPadding)
             ) {
+                // --- Tus Destinos de Navegación ---
                 composable(Route.Home.path) {
-                    val products by authViewModel.products.collectAsStateWithLifecycle()
+                    // --- LLAMADA A HomeScreen (CORREGIDA) ---
                     HomeScreen(
                         onGoLogin = goLogin,
                         onGoRegister = goRegister,
                         onGoMolduras = goMolduras,
                         onGoCuadros = goCuadros,
                         onGoContact = goContact,
-                        products = products
+                        products = products // <-- PASAR LA LISTA
                     )
+                    // ------------------------------------
                 }
                 composable(Route.Login.path) {
                     LoginScreenVm(
@@ -171,36 +156,31 @@ fun AppNavGraph(
                         onGoLogin = goLogin
                     )
                 }
-                // --- AÑADIR LA NUEVA RUTA ---
                 composable(Route.Molduras.path) {
                     MoldurasScreenVm(
                         vm = authViewModel,
-                        onAddProduct = goAddProduct // <--- PASAR LA ACCIÓN
+                        onAddProduct = goAddProduct
                     )
                 }
-
                 composable(Route.Cuadros.path) {
                     CuadrosScreenVm(
                         vm = authViewModel,
-                        onAddCuadro = { /* TODO: crear pantalla de añadir cuadro */ }
+                        onAddCuadro = { /* Acción para añadir cuadro si existe */ }
                     )
                 }
-
                 composable(Route.Cart.path) {
                     CartScreenVm(
                         vm = authViewModel,
                         onNavigateBack = goBack
                     )
                 }
-
                 composable(Route.Contact.path) {
                     ContactScreen()
                 }
-
                 composable(Route.AddProduct.path) {
                     AddProductScreenVm(
                         vm = authViewModel,
-                        onNavigateBack = goBack // <--- PASAR ACCIÓN "VOLVER"
+                        onNavigateBack = goBack
                     )
                 }
             }
