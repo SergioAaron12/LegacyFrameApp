@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.legacyframeapp.R
 import com.example.legacyframeapp.data.local.product.ProductEntity
+import com.example.legacyframeapp.ui.components.AppButton
 import coil.compose.AsyncImage
 import java.io.File
 
@@ -293,17 +294,15 @@ private fun ActionChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    FilledTonalButton(
+    AppButton(
         onClick = onClick,
-        modifier = modifier.height(48.dp),
-        colors = ButtonDefaults.filledTonalButtonColors(
-            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-        )
+        modifier = modifier.height(48.dp)
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(label)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(label)
+        }
     }
 }
 

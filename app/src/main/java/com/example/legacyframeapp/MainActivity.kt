@@ -18,11 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
 import androidx.compose.runtime.LaunchedEffect
-<<<<<<< HEAD
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-// Importaciones de tu capa de datos y navegación
-=======
->>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
 import com.example.legacyframeapp.data.local.database.AppDatabase
 import com.example.legacyframeapp.data.repository.UserRepository
 import com.example.legacyframeapp.navegation.AppNavGraph
@@ -68,7 +64,6 @@ fun AppRoot() {
     val cartDao = db.cartDao()
     val cartRepository = CartRepository(cartDao)
 
-<<<<<<< HEAD
     val userPrefs = UserPreferences(context)
 
     // Repositorio de órdenes (historial de compras)
@@ -76,9 +71,6 @@ fun AppRoot() {
     val orderRepository = orderDao?.let { OrderRepository(it) }
 
     // Crea el ViewModel usando la Factory (AHORA PASAMOS AMBOS REPOS)
-=======
-    // --- 4. MODIFICAR LA CREACIÓN DE LA FACTORY ---
->>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModelFactory(
             application = application, // <-- PASAR APPLICATION PRIMERO
@@ -93,13 +85,8 @@ fun AppRoot() {
 
     val navController = rememberNavController()
 
-<<<<<<< HEAD
-    // ... (El resto de tu UINavegacionTheme sigue igual) ...
     val darkMode by authViewModel.darkMode.collectAsStateWithLifecycle()
     UINavegacionTheme(darkTheme = darkMode) {
-=======
-    UINavegacionTheme {
->>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
         Surface(color = MaterialTheme.colorScheme.background) {
             // Prefetch de imágenes (lógica de tu compañero)
             LaunchedEffect(Unit) {

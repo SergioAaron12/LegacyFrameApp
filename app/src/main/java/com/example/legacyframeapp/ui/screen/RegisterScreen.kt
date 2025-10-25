@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.legacyframeapp.ui.components.AppButton
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
 // --- Stateful Composable (SIN CAMBIOS) ---
@@ -274,7 +275,7 @@ private fun RegisterScreen(
                 Spacer(Modifier.height(16.dp))
 
                 // --- BOTÓN REGISTRAR ---
-                Button(
+                AppButton(
                     onClick = onSubmit,
                     enabled = canSubmit && !isSubmitting,
                     modifier = Modifier.fillMaxWidth()

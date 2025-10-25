@@ -4,7 +4,12 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -51,38 +56,32 @@ import coil.compose.AsyncImage
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import java.io.File
 
-// -----------------------------------------------------------------
-// 1. Composable "Stateful" (Conectado al ViewModel)
-// -----------------------------------------------------------------
 @Composable
-fun AddProductScreenVm(
+fun AddCuadroScreenVm(
     vm: AuthViewModel,
     onNavigateBack: () -> Unit
 ) {
-    val state by vm.addProduct.collectAsStateWithLifecycle()
+    val state by vm.addCuadro.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    // Photo Picker (galería)
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
-        vm.onImageSelected(uri)
+        vm.onCuadroImageSelected(uri)
     }
 
-    // Cámara: tomar foto y guardarla en un archivo temporal vía FileProvider
     var cameraUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success ->
         if (success) {
-            val current = cameraUri
-            vm.onImageSelected(current)
+            vm.onCuadroImageSelected(cameraUri)
         }
     }
 
     fun launchCamera() {
         val imagesDir = File(context.cacheDir, "images").apply { mkdirs() }
-        val photoFile = File(imagesDir, "camera_${System.currentTimeMillis()}.jpg")
+        val photoFile = File(imagesDir, "cuadro_${System.currentTimeMillis()}.jpg")
         val uri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
@@ -99,31 +98,34 @@ fun AddProductScreenVm(
         if (granted) launchCamera()
     }
 
-    // Cuando 'saveSuccess' se vuelve true, resetea el estado y vuelve atrás
     LaunchedEffect(state.saveSuccess) {
         if (state.saveSuccess) {
-            vm.clearAddProductState()
+            vm.clearAddCuadroState()
             onNavigateBack()
         }
     }
 
-    AddProductScreen(
-        name = state.name,
+    AddCuadroScreen(
+        title = state.title,
         description = state.description,
         price = state.price,
-    imageUri = state.imageUri,
-        nameError = state.nameError,
+        size = state.size,
+        material = state.material,
+        category = state.category,
+        imageUri = state.imageUri,
+        titleError = state.titleError,
         priceError = state.priceError,
         imageError = state.imageError,
         isSaving = state.isSaving,
         canSubmit = state.canSubmit,
         errorMsg = state.errorMsg,
-        onNameChange = { vm.onAddProductChange(name = it) },
-        onDescriptionChange = { vm.onAddProductChange(description = it) },
-        onPriceChange = { vm.onAddProductChange(price = it) },
-        onSelectImageGallery = {
-            pickImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        },
+        onTitleChange = { vm.onAddCuadroChange(title = it) },
+        onDescriptionChange = { vm.onAddCuadroChange(description = it) },
+        onPriceChange = { vm.onAddCuadroChange(price = it) },
+        onSizeChange = { vm.onAddCuadroChange(size = it) },
+        onMaterialChange = { vm.onAddCuadroChange(material = it) },
+        onCategoryChange = { vm.onAddCuadroChange(category = it) },
+        onSelectImageGallery = { pickImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
         onCapturePhoto = {
             val hasCam = ContextCompat.checkSelfPermission(
                 context,
@@ -131,39 +133,48 @@ fun AddProductScreenVm(
             ) == PackageManager.PERMISSION_GRANTED
             if (hasCam) launchCamera() else cameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
         },
-        onSubmit = { vm.saveProduct(context) },
-        onBack = onNavigateBack // Pasa la acción de "volver"
+        onSubmit = { vm.saveCuadro(context) },
+        onBack = onNavigateBack
     )
 }
-// -----------------------------------------------------------------
-// 2. Composable "Stateless" (Solo UI)
-// -----------------------------------------------------------------
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddProductScreen(
-    name: String, description: String, price: String, imageUri: Uri?,
-    nameError: String?, priceError: String?, imageError: String?,
-    isSaving: Boolean, canSubmit: Boolean, errorMsg: String?,
-    onNameChange: (String) -> Unit,
+fun AddCuadroScreen(
+    title: String,
+    description: String,
+    price: String,
+    size: String,
+    material: String,
+    category: String,
+    imageUri: Uri?,
+    titleError: String?,
+    priceError: String?,
+    imageError: String?,
+    isSaving: Boolean,
+    canSubmit: Boolean,
+    errorMsg: String?,
+    onTitleChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onPriceChange: (String) -> Unit,
+    onSizeChange: (String) -> Unit,
+    onMaterialChange: (String) -> Unit,
+    onCategoryChange: (String) -> Unit,
     onSelectImageGallery: () -> Unit,
     onCapturePhoto: () -> Unit,
     onSubmit: () -> Unit,
     onBack: () -> Unit
 ) {
-
-
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Añadir Moldura") },
+                title = { Text("Añadir Cuadro") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors( // Asume que tienes colores definidos
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
                     navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
@@ -179,29 +190,27 @@ fun AddProductScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
-            // Nombre
             OutlinedTextField(
-                value = name,
-                onValueChange = onNameChange,
-                label = { Text("Nombre Moldura") },
-                isError = nameError != null,
+                value = title,
+                onValueChange = onTitleChange,
+                label = { Text("Título") },
+                isError = titleError != null,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth()
             )
-            if (nameError != null) { Text(nameError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall) }
+            if (titleError != null) {
+                Text(titleError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+            }
 
-            // Descripción
             OutlinedTextField(
                 value = description,
                 onValueChange = onDescriptionChange,
                 label = { Text("Descripción (Opcional)") },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                modifier = Modifier.fillMaxWidth().height(100.dp) // Más alto
+                modifier = Modifier.fillMaxWidth()
             )
 
-            // Precio
             OutlinedTextField(
                 value = price,
                 onValueChange = { onPriceChange(it.filter(Char::isDigit).take(5)) },
@@ -209,56 +218,56 @@ fun AddProductScreen(
                 placeholder = { Text("0") },
                 isError = priceError != null,
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                 visualTransformation = ThousandSeparatorTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
-            if (priceError != null) { Text(priceError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall) }
-            else if (price.isNotBlank()) {
+            if (priceError != null) {
+                Text(priceError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+            } else if (price.isNotBlank()) {
                 Text("Precio: $ " + formatWithThousands(price), style = MaterialTheme.typography.labelSmall)
             }
 
+            OutlinedTextField(
+                value = size,
+                onValueChange = onSizeChange,
+                label = { Text("Tamaño (ej: 30x40 cm)") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth()
+            )
 
-            // Vista previa de la imagen
+            OutlinedTextField(
+                value = material,
+                onValueChange = onMaterialChange,
+                label = { Text("Material") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = category,
+                onValueChange = onCategoryChange,
+                label = { Text("Categoría") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                modifier = Modifier.fillMaxWidth()
+            )
+
             if (imageUri != null) {
                 AsyncImage(
                     model = imageUri,
                     contentDescription = "Imagen seleccionada",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
                         .clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop
                 )
-                Spacer(Modifier.height(8.dp)) // Espacio si hay imagen
             }
 
-            Spacer(Modifier.height(8.dp))
+            RowWithImageButtons(onSelectImageGallery, onCapturePhoto)
 
-            // --- Botones Imagen: Galería y Cámara ---
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(
-                    onClick = onSelectImageGallery,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text("Galería")
-                }
-                OutlinedButton(
-                    onClick = onCapturePhoto,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text("Cámara")
-                }
-            }
-            if (imageError != null) {
-                Text(imageError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            // Botón Guardar
             AppButton(
                 onClick = onSubmit,
                 enabled = canSubmit && !isSaving,
@@ -267,15 +276,29 @@ fun AddProductScreen(
                 if (isSaving) {
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
                 } else {
-                    Text("Guardar Producto")
+                    Text("Guardar Cuadro")
                 }
             }
 
             if (errorMsg != null) {
-                Text(errorMsg, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+                Text(errorMsg, color = MaterialTheme.colorScheme.error)
             }
         }
     }
 }
 
 // Helpers movidos a ui/components/PriceVisuals.kt
+
+@Composable
+private fun RowWithImageButtons(onSelectImageGallery: () -> Unit, onCapturePhoto: () -> Unit) {
+    androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(onClick = onSelectImageGallery, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+            Text("Galería")
+        }
+        OutlinedButton(onClick = onCapturePhoto, modifier = Modifier.weight(1f)) {
+            Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+            Text("Cámara")
+        }
+    }
+}

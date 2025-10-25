@@ -37,6 +37,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -239,19 +241,28 @@ private fun CuadroCard(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(
+                    val green = Color(0xFF2E7D32)
+                    Button(
                         onClick = onContactWhatsApp,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = green,
+                            contentColor = Color.White
+                        )
                     ) {
                         Text("Consultar", style = MaterialTheme.typography.bodySmall)
                     }
-                    
-                    OutlinedButton(
+
+                    Button(
                         onClick = onAddToCart,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = green,
+                            contentColor = Color.White
+                        )
                     ) {
                         Icon(
-                            Icons.Default.ShoppingCart, 
+                            Icons.Default.ShoppingCart,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp)
                         )

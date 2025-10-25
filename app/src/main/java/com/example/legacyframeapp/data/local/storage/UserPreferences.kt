@@ -2,6 +2,7 @@ package com.example.legacyframeapp.data.local.storage
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
@@ -14,6 +15,7 @@ class UserPreferences (private val context: Context){
     //clave boolean para manejar el estado del login
     private val isLoggedInKey = booleanPreferencesKey("is_logged_key")
     private val darkModeKey = booleanPreferencesKey("dark_mode_key")
+    private val avatarTypeKey = stringPreferencesKey("avatar_type_key") // "male" | "female"
 
     //funcion para setear el valor de la variable
     suspend fun setLoggedIn(value: Boolean){
@@ -27,6 +29,12 @@ class UserPreferences (private val context: Context){
             prefs[darkModeKey] = enabled
         }
     }
+
+    suspend fun setAvatarType(type: String){
+        context.dataStore.edit { prefs ->
+            prefs[avatarTypeKey] = type
+        }
+    }
     //exposicion del dataStore
     val isLoggedIn: Flow<Boolean> = context.dataStore.data
         .map { prefs ->
@@ -36,5 +44,11 @@ class UserPreferences (private val context: Context){
     val isDarkMode: Flow<Boolean> = context.dataStore.data
         .map { prefs ->
             prefs[darkModeKey] ?: false
+        }
+
+    // Avatar seleccionado por el usuario (por defecto "male" si no existe)
+    val avatarType: Flow<String> = context.dataStore.data
+        .map { prefs ->
+            prefs[avatarTypeKey] ?: "male"
         }
 }

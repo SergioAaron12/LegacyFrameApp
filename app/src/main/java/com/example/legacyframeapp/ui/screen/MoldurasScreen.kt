@@ -32,6 +32,8 @@ import androidx.compose.material.icons.filled.AddShoppingCart
 
 // --- Material 3 Components ---
 import androidx.compose.material3.Card
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -232,12 +234,21 @@ private fun ProductCard(
                     maxLines = 3
                 )
                 Spacer(Modifier.height(8.dp))
-                IconButton(onClick = onAddToCart) {
+                val green = Color(0xFF2E7D32)
+                Button(
+                    onClick = onAddToCart,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = green,
+                        contentColor = Color.White
+                    )
+                ) {
                     Icon(
                         imageVector = Icons.Default.AddShoppingCart,
                         contentDescription = "Añadir al carrito",
-                        tint = MaterialTheme.colorScheme.primary // Tinte café
+                        modifier = Modifier.size(16.dp)
                     )
+                    Spacer(Modifier.width(4.dp))
+                    Text("Carrito", style = MaterialTheme.typography.bodySmall)
                 }
                 // ---------------------------------
             }

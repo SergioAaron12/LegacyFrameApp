@@ -14,39 +14,12 @@ import androidx.compose.material3.DrawerValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-
-<<<<<<< HEAD
-import androidx.compose.runtime.getValue // Para 'by'
-import androidx.lifecycle.compose.collectAsStateWithLifecycle // Para el estado
-import com.example.legacyframeapp.ui.components.loggedInDrawerItems // NUEVO
-import com.example.legacyframeapp.ui.components.loggedOutDrawerItems // NUEVO
-import com.example.legacyframeapp.ui.screen.MoldurasScreenVm // NUEVO
-import com.example.legacyframeapp.ui.screen.CuadrosScreenVm // NUEVO
-
-import com.example.legacyframeapp.ui.components.AppTopBar // Barra superior
-import com.example.legacyframeapp.ui.components.AppBottomBar
-import com.example.legacyframeapp.ui.components.AppDrawer // Drawer composable
-import com.example.legacyframeapp.ui.screen.HomeScreen // Pantalla Home
-import com.example.legacyframeapp.ui.screen.LoginScreenVm // Pantalla Login
-import com.example.legacyframeapp.ui.screen.RegisterScreenVm // Pantalla Registro
-import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
-import com.example.legacyframeapp.ui.screen.AddProductScreenVm
-import com.example.legacyframeapp.ui.screen.CartScreenVm
-import com.example.legacyframeapp.ui.screen.ContactScreen
-import com.example.legacyframeapp.ui.screen.AdminScreenVm
-import com.example.legacyframeapp.ui.screen.ChangeProductImageScreenVm
-import com.example.legacyframeapp.ui.screen.DeleteProductScreenVm
-import com.example.legacyframeapp.ui.screen.ProfileScreenVm
-import com.example.legacyframeapp.ui.screen.SettingsScreenVm
-import com.example.legacyframeapp.ui.screen.PurchasesScreenVm
-import com.example.legacyframeapp.ui.screen.TermsScreen
 import androidx.navigation.compose.currentBackStackEntryAsState
-=======
-// Tus imports de componentes y pantallas
 import com.example.legacyframeapp.ui.components.AppTopBar
+import com.example.legacyframeapp.ui.components.AppBottomBar
 import com.example.legacyframeapp.ui.components.AppDrawer
 import com.example.legacyframeapp.ui.components.loggedInDrawerItems
-import com.example.legacyframeapp.ui.components.loggedOutDrawerItems // Asegúrate que esta función exista y esté actualizada
+import com.example.legacyframeapp.ui.components.loggedOutDrawerItems
 import com.example.legacyframeapp.ui.screen.HomeScreen
 import com.example.legacyframeapp.ui.screen.LoginScreenVm
 import com.example.legacyframeapp.ui.screen.RegisterScreenVm
@@ -55,8 +28,15 @@ import com.example.legacyframeapp.ui.screen.CuadrosScreenVm
 import com.example.legacyframeapp.ui.screen.CartScreenVm
 import com.example.legacyframeapp.ui.screen.ContactScreen
 import com.example.legacyframeapp.ui.screen.AddProductScreenVm
+import com.example.legacyframeapp.ui.screen.AdminScreenVm
+import com.example.legacyframeapp.ui.screen.ChangeProductImageScreenVm
+import com.example.legacyframeapp.ui.screen.DeleteProductScreenVm
+import com.example.legacyframeapp.ui.screen.ProfileScreenVm
+import com.example.legacyframeapp.ui.screen.SettingsScreenVm
+import com.example.legacyframeapp.ui.screen.PurchasesScreenVm
+import com.example.legacyframeapp.ui.screen.TermsScreen
+import com.example.legacyframeapp.ui.screen.AddCuadroScreenVm
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
->>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
 
 @Composable
 fun AppNavGraph(
@@ -85,13 +65,10 @@ fun AppNavGraph(
     val goRegister: () -> Unit = {
         navController.navigate(Route.Register.path) { launchSingleTop = true }
     }
-<<<<<<< HEAD
     val goProfile: () -> Unit = {
         navController.navigate(Route.Profile.path) { launchSingleTop = true }
     }
     // --- NUEVAS ACCIONES ---
-=======
->>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
     val goMolduras: () -> Unit = {
         navController.navigate(Route.Molduras.path) { launchSingleTop = true }
     }
@@ -104,7 +81,6 @@ fun AppNavGraph(
     val goContact: () -> Unit = {
         navController.navigate(Route.Contact.path) { launchSingleTop = true }
     }
-<<<<<<< HEAD
     val goAdmin: () -> Unit = {
         navController.navigate(Route.Admin.path) { launchSingleTop = true }
     }
@@ -120,19 +96,15 @@ fun AppNavGraph(
     }
 
     // --- ACCIÓN PARA IR A AÑADIR PRODUCTO ---
-=======
->>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
     val goAddProduct: () -> Unit = {
         navController.navigate(Route.AddProduct.path) { launchSingleTop = true }
     }
-<<<<<<< HEAD
+    val goAddCuadro: () -> Unit = {
+        navController.navigate(Route.AddCuadro.path) { launchSingleTop = true }
+    }
     val goSettings: () -> Unit = {
         navController.navigate(Route.Settings.path) { launchSingleTop = true }
     }
-
-=======
-    val goBack: () -> Unit = { navController.popBackStack() }
->>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
     val doLogout: () -> Unit = {
         authViewModel.logout()
         goLogin()
@@ -218,12 +190,7 @@ fun AppNavGraph(
                         onGoRegister = goRegister,
                         onGoMolduras = goMolduras,
                         onGoCuadros = goCuadros,
-<<<<<<< HEAD
                         products = products
-=======
-                        onGoContact = goContact,
-                        products = products // <-- PASAR LA LISTA
->>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
                     )
                     // ------------------------------------
                 }
@@ -259,7 +226,7 @@ fun AppNavGraph(
                 composable(Route.Cuadros.path) {
                     CuadrosScreenVm(
                         vm = authViewModel,
-                        onAddCuadro = { /* Acción para añadir cuadro si existe */ }
+                        onAddCuadro = goAddCuadro
                     )
                 }
                 composable(Route.Cart.path) {
@@ -271,7 +238,6 @@ fun AppNavGraph(
                 composable(Route.Contact.path) {
                     ContactScreen()
                 }
-<<<<<<< HEAD
                 composable(Route.Settings.path) {
                     SettingsScreenVm(
                         vm = authViewModel,
@@ -286,11 +252,14 @@ fun AppNavGraph(
                 composable(Route.Terms.path) {
                     TermsScreen()
                 }
-
-=======
->>>>>>> b7b797d5722760f582b2ee745b1de7b6e4236fdf
                 composable(Route.AddProduct.path) {
                     AddProductScreenVm(
+                        vm = authViewModel,
+                        onNavigateBack = goBack
+                    )
+                }
+                composable(Route.AddCuadro.path) {
+                    AddCuadroScreenVm(
                         vm = authViewModel,
                         onNavigateBack = goBack
                     )
@@ -300,6 +269,7 @@ fun AppNavGraph(
                     AdminScreenVm(
                         vm = authViewModel,
                         onGoAddProduct = goAddProduct,
+                        onGoAddCuadro = goAddCuadro,
                         onGoChangeImage = goChangeProductImage,
                         onGoDeleteProduct = goDeleteProduct,
                         onBack = goBack

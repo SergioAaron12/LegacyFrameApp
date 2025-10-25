@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="96dp"
+    android:height="96dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Head -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12,12a4,4 0 1,0 0,-8 4,4 0 0,0 0,8z" />
+    <!-- Hair bun hint -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M16,6a2,2 0 1,0 4,0 2,2 0 1,0 -4,0z" />
+    <!-- Torso (slightly narrower shoulders) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M5,21c0,-3 3,-5.5 7,-5.5s7,2.5 7,5.5v1H5v-1z" />
+</vector>

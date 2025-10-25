@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
+import com.example.legacyframeapp.ui.components.AppButton
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -29,6 +29,7 @@ import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 fun AdminScreenVm(
     vm: AuthViewModel,
     onGoAddProduct: () -> Unit,
+    onGoAddCuadro: () -> Unit,
     onGoChangeImage: () -> Unit,
     onGoDeleteProduct: () -> Unit,
     onBack: () -> Unit
@@ -36,6 +37,7 @@ fun AdminScreenVm(
     val ctx = LocalContext.current
     AdminScreen(
         onAddProduct = onGoAddProduct,
+        onAddCuadro = onGoAddCuadro,
         onChangeImage = onGoChangeImage,
         onDeleteProduct = onGoDeleteProduct,
         onPrefetchImages = {
@@ -51,6 +53,7 @@ fun AdminScreenVm(
 @Composable
 fun AdminScreen(
     onAddProduct: () -> Unit,
+    onAddCuadro: () -> Unit,
     onChangeImage: () -> Unit,
     onDeleteProduct: () -> Unit,
     onPrefetchImages: () -> Unit,
@@ -83,23 +86,27 @@ fun AdminScreen(
         ) {
             Text("Acciones rápidas", style = MaterialTheme.typography.titleMedium)
 
-            Button(onClick = onAddProduct, modifier = Modifier.fillMaxWidth()) {
+            AppButton(onClick = onAddProduct, modifier = Modifier.fillMaxWidth()) {
                 Text("Añadir Moldura")
             }
 
-            Button(onClick = onChangeImage, modifier = Modifier.fillMaxWidth()) {
+            AppButton(onClick = onAddCuadro, modifier = Modifier.fillMaxWidth()) {
+                Text("Añadir Cuadro")
+            }
+
+            AppButton(onClick = onChangeImage, modifier = Modifier.fillMaxWidth()) {
                 Text("Cambiar imagen de producto")
             }
 
-            Button(onClick = onDeleteProduct, modifier = Modifier.fillMaxWidth()) {
+            AppButton(onClick = onDeleteProduct, modifier = Modifier.fillMaxWidth()) {
                 Text("Eliminar producto")
             }
 
-            Button(onClick = onPrefetchImages, modifier = Modifier.fillMaxWidth()) {
+            AppButton(onClick = onPrefetchImages, modifier = Modifier.fillMaxWidth()) {
                 Text("Prefetch de Imágenes de Productos")
             }
 
-            Button(onClick = onClearCart, modifier = Modifier.fillMaxWidth()) {
+            AppButton(onClick = onClearCart, modifier = Modifier.fillMaxWidth()) {
                 Text("Vaciar Carrito")
             }
 

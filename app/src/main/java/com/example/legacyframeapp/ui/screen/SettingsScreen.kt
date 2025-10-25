@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import com.example.legacyframeapp.ui.components.AppButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -64,9 +65,9 @@ fun SettingsScreen(
                 }
             )
             Spacer(modifier = Modifier.padding(8.dp))
-            Button(modifier = Modifier.fillMaxWidth(), onClick = onGoContact) { Text("Contacto") }
-            Button(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), onClick = onGoPurchases) { Text("Ver tus compras") }
-            Button(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), onClick = onGoTerms) { Text("Términos y condiciones") }
+            AppButton(modifier = Modifier.fillMaxWidth(), onClick = onGoContact) { Text("Contacto") }
+            AppButton(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), onClick = onGoPurchases) { Text("Ver tus compras") }
+            AppButton(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), onClick = onGoTerms) { Text("Términos y condiciones") }
         }
     }
 }
