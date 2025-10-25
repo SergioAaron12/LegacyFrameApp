@@ -125,7 +125,7 @@ fun CuadrosScreen(
                     onAddToCart = { onAddToCart(cuadro) },
                     onContactWhatsApp = {
                         val text = Uri.encode("Hola, me interesa el cuadro: ${cuadro.title}")
-                        val url = "https://api.whatsapp.com/send?phone=56227916878&text=$text"
+                        val url = "https://api.whatsapp.com/send?phone=56945621740&text=$text"
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                         context.startActivity(intent)
                     }

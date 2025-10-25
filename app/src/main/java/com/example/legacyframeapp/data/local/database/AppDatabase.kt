@@ -34,7 +34,7 @@ private const val ACTIVO_ESTADO_ID = 1
         CartItemEntity::class,  // <--- Carrito
         OrderEntity::class      // <--- Órdenes / compras
     ],
-    version = 6,              // bump version for orders table
+    version = 8,              // bump version for new test user
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -71,6 +71,7 @@ abstract class AppDatabase : RoomDatabase() {
                             val cuadroDao = dbi.cuadroDao()
 
                             if (userDao.count() == 0) { // Solo si la BD está vacía
+                                // Usuario Admin
                                 val adminUser = UserEntity(
                                     nombre = "Admin",
                                     apellido = "Legacy",
@@ -83,6 +84,20 @@ abstract class AppDatabase : RoomDatabase() {
                                     estadoId = ACTIVO_ESTADO_ID
                                 )
                                 userDao.insert(adminUser)
+                                
+                                // Usuario de prueba
+                                val testUser = UserEntity(
+                                    nombre = "Usuario",
+                                    apellido = "Prueba",
+                                    phone = 87654321,
+                                    rut = "22222222",
+                                    dv = "2",
+                                    email = "usuario@legacyframes.cl",
+                                    password = "User123!",
+                                    rolId = 2, // Rol de usuario normal
+                                    estadoId = ACTIVO_ESTADO_ID
+                                )
+                                userDao.insert(testUser)
                             }
 
                             // Productos de ejemplo (molduras)
@@ -96,50 +111,50 @@ abstract class AppDatabase : RoomDatabase() {
                                 productDao.insert(
                                     ProductEntity(name = "P 15 greca LA oro", description = "Greca con acabado dorado, elegante y sofisticada.", price = 24000, category = "grecas", imagePath = "moldura3")
                                 )
-                                // Más productos desde molduras.html del repositorio web
+                                // Nuevos productos con imágenes locales
                                 productDao.insert(
                                     ProductEntity(
                                         name = "P 15 greca LA plata",
                                         description = "Greca con acabado plateado, moderna y elegante.",
-                                        price = 57500,
-                                        category = "grecas",
-                                        imagePath = "https://raw.githubusercontent.com/SergioAaron12/Legacy-Frames/main/img/moldura4.jpg"
+                                        price = 20000,
+                                        category = "Grecas",
+                                        imagePath = "p15_greca_plata"
                                     )
                                 )
                                 productDao.insert(
                                     ProductEntity(
                                         name = "H 20 albayalde azul",
                                         description = "Moldura rústica con acabado albayalde azul, ideal para ambientes campestres.",
-                                        price = 70000,
-                                        category = "rusticas",
-                                        imagePath = "https://raw.githubusercontent.com/SergioAaron12/Legacy-Frames/main/img/rustica1.jpg"
+                                        price = 20000,
+                                        category = "Rústicas",
+                                        imagePath = "h20_albayalde_azul"
                                     )
                                 )
                                 productDao.insert(
                                     ProductEntity(
                                         name = "B-10 t/alerce",
                                         description = "Moldura natural de alerce con textura original de la madera.",
-                                        price = 37500,
-                                        category = "naturales",
-                                        imagePath = "https://raw.githubusercontent.com/SergioAaron12/Legacy-Frames/main/img/naturales1.jpg"
+                                        price = 20000,
+                                        category = "Naturales",
+                                        imagePath = "b10_alerce"
                                     )
                                 )
                                 productDao.insert(
                                     ProductEntity(
                                         name = "J-16",
                                         description = "Moldura de madera nativa chilena, resistente y de gran calidad.",
-                                        price = 41500,
-                                        category = "nativas",
-                                        imagePath = "https://raw.githubusercontent.com/SergioAaron12/Legacy-Frames/main/img/nativas1.jpg"
+                                        price = 20000,
+                                        category = "Nativas",
+                                        imagePath = "j16_nativa"
                                     )
                                 )
                                 productDao.insert(
                                     ProductEntity(
                                         name = "P-12 Finger Joint",
                                         description = "Moldura finger joint de alta calidad con unión invisible.",
-                                        price = 27750,
-                                        category = "finger-joint",
-                                        imagePath = "https://raw.githubusercontent.com/SergioAaron12/Legacy-Frames/main/img/finger_joint1.jpg"
+                                        price = 20000,
+                                        category = "Finger Joint",
+                                        imagePath = "p12_finger_joint"
                                     )
                                 )
                             } catch (_: Exception) {}

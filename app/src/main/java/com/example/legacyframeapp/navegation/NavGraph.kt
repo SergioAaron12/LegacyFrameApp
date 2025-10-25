@@ -147,18 +147,22 @@ fun AppNavGraph(
     ) {
         Scaffold(
             topBar = {
-                // --- Llamada a AppTopBar (ya estaba correcta) ---
-                AppTopBar(
-                    onOpenDrawer = openDrawer,
-                    onOpenCart = goCart,
-                    cartItemCount = cartItemCount
-                )
+                val backStackEntry by navController.currentBackStackEntryAsState()
+                val route = backStackEntry?.destination?.route
+                if (route != Route.Splash.path) {
+                    AppTopBar(
+                        onOpenDrawer = openDrawer,
+                        onOpenCart = goCart,
+                        cartItemCount = cartItemCount
+                    )
+                }
             },
             bottomBar = {
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 val route = backStackEntry?.destination?.route
                 // Ocultar en pantallas de flujo o detalle
                 val hideOn = setOf(
+                    Route.Splash.path,
                     Route.Cart.path,
                     Route.Login.path,
                     Route.Register.path,
@@ -179,9 +183,12 @@ fun AppNavGraph(
         ) { innerPadding ->
             NavHost(
                 navController = navController,
-                startDestination = Route.Home.path,
+                startDestination = Route.Splash.path,
                 modifier = Modifier.padding(innerPadding)
             ) {
+                composable(Route.Splash.path) {
+                    com.example.legacyframeapp.ui.screen.SplashScreen(onFinished = goHome)
+                }
                 // --- Tus Destinos de Navegación ---
                 composable(Route.Home.path) {
                     // --- LLAMADA A HomeScreen (CORREGIDA) ---

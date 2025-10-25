@@ -262,10 +262,10 @@ private fun categoryColors(category: String): Pair<Color, Color> {
     // primary #8B5C2A, info #0dcaf0, success #198754, secondary #6c757d, warning #ffc107
     return when (category.lowercase()) {
         "grecas" -> Color(0xFF8B5C2A) to Color.White // primary
-        "rusticas" -> Color(0xFF0DCAF0) to Color(0xFF07323A) // info
+        "rústicas", "rusticas" -> Color(0xFF0DCAF0) to Color(0xFF07323A) // info
         "naturales" -> Color(0xFF198754) to Color.White // success
         "nativas" -> Color(0xFF6C757D) to Color.White // secondary
-        "finger-joint", "fingerjoint", "finger_joint" -> Color(0xFFFFC107) to Color(0xFF3A2E00) // warning
+        "finger-joint", "fingerjoint", "finger_joint", "finger joint" -> Color(0xFFFFC107) to Color(0xFF3A2E00) // warning
         else -> MaterialTheme.colorScheme.secondary to MaterialTheme.colorScheme.onSecondary
     }
 }

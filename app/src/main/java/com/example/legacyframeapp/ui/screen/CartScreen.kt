@@ -57,7 +57,7 @@ fun CartScreenVm(
     val doCheckout = {
         val lines = items.joinToString("\n") { "- ${it.name} x${it.quantity} = ${formatPrice(it.price * it.quantity)}" }
         val message = "Pedido Legacy Frames:\n$lines\nTotal: ${formatPrice(total)}"
-        val url = "https://api.whatsapp.com/send?phone=56227916878&text=" + android.net.Uri.encode(message)
+        val url = "https://api.whatsapp.com/send?phone=56945621740&text=" + android.net.Uri.encode(message)
         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
         context.startActivity(intent)
         vm.recordOrder(items, total)

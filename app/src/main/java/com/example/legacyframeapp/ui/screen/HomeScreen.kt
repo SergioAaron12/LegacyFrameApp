@@ -3,6 +3,7 @@ package com.example.legacyframeapp.ui.screen
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,7 +35,13 @@ import java.io.File
 
 
 // Data classes para simular los datos de tu web
-data class ProductHome(val title: String, val price: Int, val imageResId: Int? = null, val imagePath: String? = null)
+data class ProductHome(
+    val title: String, 
+    val price: Int, 
+    val imageResId: Int? = null, 
+    val imagePath: String? = null,
+    val description: String = ""
+)
 data class ServiceHome(val icon: String, val title: String, val description: String)
 
 @Composable
@@ -45,16 +53,27 @@ fun HomeScreen(
     onGoCuadros: () -> Unit,
     products: List<ProductEntity>
 ) {
-    // Destacados: toma hasta 6 productos del catálogo
-    val popularProducts: List<ProductHome> = products.take(6).map { p ->
-        // Si imagePath apunta a drawables que ya tenemos, asigna id; de lo contrario, null
+    // Destacados: toma 3 productos del catálogo (los más destacados)
+    val popularProducts: List<ProductHome> = products.take(3).map { p ->
+        // Mapeo de imágenes locales
         val resId = when (p.imagePath) {
             "moldura1" -> R.drawable.moldura1
             "moldura2" -> R.drawable.moldura2
             "moldura3" -> R.drawable.moldura3
+            "p15_greca_plata" -> R.drawable.p15_greca_plata
+            "h20_albayalde_azul" -> R.drawable.h20_albayalde_azul
+            "b10_alerce" -> R.drawable.b10_alerce
+            "j16_nativa" -> R.drawable.j16_nativa
+            "p12_finger_joint" -> R.drawable.p12_finger_joint
             else -> null
         }
-        ProductHome(title = p.name, price = p.price, imageResId = resId, imagePath = p.imagePath)
+        ProductHome(
+            title = p.name, 
+            price = p.price, 
+            imageResId = resId, 
+            imagePath = p.imagePath,
+            description = p.description
+        )
     }
     val services = listOf(
         ServiceHome("🖼️", "Enmarcación Personalizada", "Creamos marcos a medida para cualquier obra."),
@@ -69,67 +88,90 @@ fun HomeScreen(
             // Usamos el color de fondo claro directamente (similar a --light-bg)
             .background(Color(0xFFFAF8F5))
     ) {
-        // --- 1. Banner Principal y Tarjeta Superpuesta ---
+        // --- 1. Banner Principal con imagen de Legacy Frames ---
         item {
-            // Box permite superponer elementos
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Image(
-                    // =====> AQUÍ VA TU IMAGEN DEL BANNER <=====
-                    painter = painterResource(id = R.drawable.legacy_frame_banner), // Reemplaza f_ban por tu archivo
-                    contentDescription = "Banner Legacy Frames",
+            // Imagen del header con el logo y las fotos
+            Image(
+                painter = painterResource(id = R.drawable.home_header),
+                contentDescription = "Legacy Frames Header",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp),
+                contentScale = ContentScale.Crop
+            )
+        }
+        
+        // --- 2. Tarjeta de Bienvenida con Botones ---
+        item {
+            // Tarjeta de bienvenida (Surface crea la tarjeta con sombra)
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                shape = RoundedCornerShape(16.dp), // Bordes redondeados
+                shadowElevation = 8.dp, // Sombra
+                color = Color.White // Fondo blanco de la tarjeta
+            ) {
+                // Contenido de la tarjeta
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(220.dp), // Altura del banner
-                    contentScale = ContentScale.Crop // Asegura que la imagen cubra el espacio
-                )
-                // Tarjeta superpuesta (Surface crea la tarjeta con sombra)
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp) // Márgenes laterales
-                        .align(Alignment.BottomCenter) // Alinea la tarjeta abajo del Box
-                        // Offset mueve la tarjeta hacia arriba para superponerla
-                        .offset(y = 60.dp),
-                    shape = RoundedCornerShape(16.dp), // Bordes redondeados
-                    shadowElevation = 8.dp, // Sombra
-                    color = Color.White // Fondo blanco de la tarjeta
+                        .padding(vertical = 24.dp, horizontal = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Contenido de la tarjeta
-                    Column(
-                        modifier = Modifier.padding(vertical = 24.dp, horizontal = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally // Centra el texto
+                    // Logo de marca
+                    com.example.legacyframeapp.ui.components.BrandLogoLarge(
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Tradición y calidad en enmarcación desde 1998",
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        color = Color(0xFF6c757d)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Botones debajo del texto
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                     ) {
-                        // Logo de marca en lugar del texto
-                        com.example.legacyframeapp.ui.components.BrandLogoLarge(
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(4.dp)) // Espacio vertical pequeño
-                        Text(
-                            "Tradición y calidad en enmarcación desde 1998",
-                            style = MaterialTheme.typography.bodyLarge,
-                            textAlign = TextAlign.Center, // Texto centrado
-                            color = Color(0xFF6c757d) // Color texto claro (--text-light)
-                        )
+                        AppButton(
+                            onClick = onGoMolduras,
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Molduras")
+                            }
+                        }
+                        AppButton(
+                            onClick = onGoCuadros,
+                            modifier = Modifier.weight(1f).height(48.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Cuadros")
+                            }
+                        }
                     }
                 }
             }
         }
 
-        // Espacio para compensar la altura de la tarjeta superpuesta
-        item { Spacer(modifier = Modifier.height(76.dp)) } // Ajusta si es necesario
-
-        // --- 2. Accesos rápidos ---
+        // --- 3. Productos Más Vendidos ---
         item {
-            Spacer(modifier = Modifier.height(8.dp))
-            QuickActionsRow(
-                onGoMolduras = onGoMolduras,
-                onGoCuadros = onGoCuadros
-            )
-        }
-
-        // --- 3. Productos Populares ---
-        item {
-            SectionTitle("Nuestros Productos Más Populares") // Título reutilizable
+            SectionTitle("Nuestros Más Vendidos") // Título reutilizable
             // Fila horizontal que permite scroll si hay muchos productos
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp), // Espacio en los bordes
@@ -137,7 +179,10 @@ fun HomeScreen(
             ) {
                 // Itera sobre la lista de productos y crea una tarjeta para cada uno
                 items(popularProducts) { product ->
-                    ProductCardHome(product) // Llama al Composable de la tarjeta
+                    ProductCardHome(
+                        product = product,
+                        onClick = onGoMolduras // Al hacer clic va a Molduras
+                    )
                 }
             }
         }
@@ -192,13 +237,18 @@ fun SectionTitle(title: String, modifier: Modifier = Modifier) {
 
 // Composable para Tarjeta de Producto Popular
 @Composable
-fun ProductCardHome(product: ProductHome) {
+fun ProductCardHome(product: ProductHome, onClick: () -> Unit) {
+    val context = LocalContext.current
+    
     Card(
-        modifier = Modifier.width(200.dp), // Ancho fijo para las tarjetas
+        modifier = Modifier
+            .width(200.dp)
+            .clickable { onClick() }, // Añade clickable
         elevation = CardDefaults.cardElevation(4.dp), // Sombra ligera
         shape = RoundedCornerShape(12.dp) // Bordes redondeados
     ) {
         Column {
+            // Imagen del producto
             when {
                 product.imageResId != null -> {
                     Image(
@@ -211,27 +261,38 @@ fun ProductCardHome(product: ProductHome) {
                         contentScale = ContentScale.Crop
                     )
                 }
-                product.imagePath?.startsWith("http") == true -> {
-                    AsyncImage(
-                        model = product.imagePath,
-                        contentDescription = product.title,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(130.dp)
-                            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
-                        contentScale = ContentScale.Crop
+                !product.imagePath.isNullOrEmpty() -> {
+                    // Intenta cargar desde drawable primero
+                    val drawableId = context.resources.getIdentifier(
+                        product.imagePath,
+                        "drawable",
+                        context.packageName
                     )
-                }
-                product.imagePath?.let { File(it) }?.exists() == true -> {
-                    AsyncImage(
-                        model = File(product.imagePath!!),
-                        contentDescription = product.title,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(130.dp)
-                            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
-                        contentScale = ContentScale.Crop
-                    )
+                    
+                    if (drawableId != 0) {
+                        Image(
+                            painter = painterResource(id = drawableId),
+                            contentDescription = product.title,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(130.dp)
+                                .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        // Si no está en drawable, intenta cargar desde archivo o URL
+                        AsyncImage(
+                            model = product.imagePath,
+                            contentDescription = product.title,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(130.dp)
+                                .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)),
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(R.drawable.ic_launcher_foreground),
+                            error = painterResource(R.drawable.ic_launcher_foreground)
+                        )
+                    }
                 }
                 else -> {
                     // Placeholder cuando no hay imagen disponible
@@ -255,7 +316,22 @@ fun ProductCardHome(product: ProductHome) {
                     style = MaterialTheme.typography.titleMedium
                 )
                 Spacer(Modifier.height(4.dp))
-                Text("$ ${product.price}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                // Descripción breve
+                if (product.description.isNotEmpty()) {
+                    Text(
+                        product.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF6c757d),
+                        maxLines = 2,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                }
+                Text(
+                    "$ ${String.format("%,d", product.price)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

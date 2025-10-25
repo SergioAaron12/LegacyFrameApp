@@ -190,7 +190,7 @@ fun ContactScreen() {
             // Llamar (más compacto, consistente con otros botones)
             OutlinedButton(onClick = {
                 val intent = Intent(Intent.ACTION_DIAL)
-                intent.data = Uri.parse("tel:56227916878")
+                intent.data = Uri.parse("tel:56945621740")
                 context.startActivity(intent)
             }, modifier = Modifier
                 .height(40.dp)
