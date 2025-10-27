@@ -213,7 +213,7 @@ fun AddCuadroScreen(
 
             OutlinedTextField(
                 value = price,
-                onValueChange = { onPriceChange(it.filter(Char::isDigit).take(5)) },
+                onValueChange = { onPriceChange(it.filter(Char::isDigit).take(6)) },
                 label = { Text("Precio (CLP)") },
                 placeholder = { Text("0") },
                 isError = priceError != null,
