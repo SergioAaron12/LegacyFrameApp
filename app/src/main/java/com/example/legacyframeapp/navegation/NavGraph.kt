@@ -31,6 +31,7 @@ import com.example.legacyframeapp.ui.screen.AddProductScreenVm
 import com.example.legacyframeapp.ui.screen.AdminScreenVm
 import com.example.legacyframeapp.ui.screen.ChangeProductImageScreenVm
 import com.example.legacyframeapp.ui.screen.DeleteProductScreenVm
+import com.example.legacyframeapp.ui.screen.DeleteCuadroScreenVm
 import com.example.legacyframeapp.ui.screen.ProfileScreenVm
 import com.example.legacyframeapp.ui.screen.SettingsScreenVm
 import com.example.legacyframeapp.ui.screen.PurchasesScreenVm
@@ -89,6 +90,9 @@ fun AppNavGraph(
     }
     val goDeleteProduct: () -> Unit = {
         navController.navigate(Route.DeleteProduct.path) { launchSingleTop = true }
+    }
+    val goDeleteCuadro: () -> Unit = {
+        navController.navigate(Route.DeleteCuadro.path) { launchSingleTop = true }
     }
     // --- ACCIÓN PARA VOLVER ATRÁS ---
     val goBack: () -> Unit = {
@@ -279,6 +283,7 @@ fun AppNavGraph(
                         onGoAddCuadro = goAddCuadro,
                         onGoChangeImage = goChangeProductImage,
                         onGoDeleteProduct = goDeleteProduct,
+                        onGoDeleteCuadro = goDeleteCuadro,
                         onBack = goBack
                     )
                 }
@@ -292,6 +297,13 @@ fun AppNavGraph(
 
                 composable(Route.DeleteProduct.path) {
                     DeleteProductScreenVm(
+                        vm = authViewModel,
+                        onNavigateBack = goBack
+                    )
+                }
+                
+                composable(Route.DeleteCuadro.path) {
+                    DeleteCuadroScreenVm(
                         vm = authViewModel,
                         onNavigateBack = goBack
                     )

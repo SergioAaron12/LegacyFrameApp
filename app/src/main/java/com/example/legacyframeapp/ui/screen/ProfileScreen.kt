@@ -13,20 +13,25 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Photo
 import com.example.legacyframeapp.ui.components.AppButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -43,9 +48,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
+import java.io.File
 
 @Composable
 fun ProfileScreenVm(
@@ -80,7 +87,11 @@ fun ProfileScreen(
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
     var showConfirmDialog by remember { mutableStateOf(false) }
+    var showImageSourceDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    
+    // URI para la foto tomada con la cámara
+    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
     
     // Cargar la imagen guardada al iniciar
     LaunchedEffect(email) {
@@ -100,6 +111,18 @@ fun ProfileScreen(
         }
     }
     
+    // Crear URI para la cámara en almacenamiento interno persistente
+    fun createImageUri(): Uri {
+        val dir = File(context.filesDir, "profile_images")
+        if (!dir.exists()) dir.mkdirs()
+        val imageFile = File(dir, "profile_${System.currentTimeMillis()}.jpg")
+        return FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            imageFile
+        )
+    }
+    
     // Launcher para seleccionar imagen de la galería
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -108,6 +131,78 @@ fun ProfileScreen(
             tempImageUri = uri
             showConfirmDialog = true
         }
+    }
+    
+    // Launcher para tomar foto con la cámara
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && cameraImageUri != null) {
+            tempImageUri = cameraImageUri
+            showConfirmDialog = true
+        }
+    }
+
+    // Permiso de cámara en tiempo de ejecución
+    val requestCameraPermission = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            cameraImageUri = createImageUri()
+            takePictureLauncher.launch(cameraImageUri!!)
+        } else {
+            // Fallback a galería si no concede permiso
+            pickImageLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        }
+    }
+    
+    // Diálogo de selección de fuente (Cámara o Galería)
+    if (showImageSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showImageSourceDialog = false },
+            title = { Text("Seleccionar foto") },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            showImageSourceDialog = false
+                            // Solicitar permiso de cámara y continuar
+                            requestCameraPermission.launch(android.Manifest.permission.CAMERA)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.CameraAlt, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Tomar foto")
+                    }
+                    
+                    OutlinedButton(
+                        onClick = {
+                            showImageSourceDialog = false
+                            pickImageLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Photo, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Seleccionar de galería")
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showImageSourceDialog = false }) {
+                    Text("Cancelar")
+                }
+            }
+        )
     }
     
     // Diálogo de confirmación
@@ -186,9 +281,7 @@ fun ProfileScreen(
                 if (isLoggedIn) {
                     IconButton(
                         onClick = {
-                            pickImageLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
+                            showImageSourceDialog = true
                         },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)

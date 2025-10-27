@@ -16,6 +16,7 @@ sealed class Route(val path: String) {
     data object Admin     : Route("admin")
     data object ChangeProductImage : Route("change_product_image")
     data object DeleteProduct : Route("delete_product")
+    data object DeleteCuadro : Route("delete_cuadro")
     data object Settings  : Route("settings")
     data object Purchases : Route("purchases")
     data object Terms     : Route("terms")

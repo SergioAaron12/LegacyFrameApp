@@ -3,4 +3,11 @@
     <cache-path
         name="my_images"
         path="images/"/>
+    <cache-path
+        name="profile_images"
+        path="/"/>
+    <!-- Almacén persistente en almacenamiento interno -->
+    <files-path
+        name="profile_persistent"
+        path="profile_images/"/>
 </paths>

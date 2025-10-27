@@ -32,6 +32,7 @@ fun AdminScreenVm(
     onGoAddCuadro: () -> Unit,
     onGoChangeImage: () -> Unit,
     onGoDeleteProduct: () -> Unit,
+    onGoDeleteCuadro: () -> Unit,
     onBack: () -> Unit
 ) {
     val ctx = LocalContext.current
@@ -40,6 +41,7 @@ fun AdminScreenVm(
         onAddCuadro = onGoAddCuadro,
         onChangeImage = onGoChangeImage,
         onDeleteProduct = onGoDeleteProduct,
+        onDeleteCuadro = onGoDeleteCuadro,
         onPrefetchImages = {
             vm.prefetchProductImages(ctx)
             Toast.makeText(ctx, "Prefetch de imágenes iniciado", Toast.LENGTH_SHORT).show()
@@ -56,6 +58,7 @@ fun AdminScreen(
     onAddCuadro: () -> Unit,
     onChangeImage: () -> Unit,
     onDeleteProduct: () -> Unit,
+    onDeleteCuadro: () -> Unit,
     onPrefetchImages: () -> Unit,
     onClearCart: () -> Unit,
     onBack: () -> Unit
@@ -100,6 +103,10 @@ fun AdminScreen(
 
             AppButton(onClick = onDeleteProduct, modifier = Modifier.fillMaxWidth()) {
                 Text("Eliminar producto")
+            }
+            
+            AppButton(onClick = onDeleteCuadro, modifier = Modifier.fillMaxWidth()) {
+                Text("Eliminar cuadro")
             }
 
             AppButton(onClick = onPrefetchImages, modifier = Modifier.fillMaxWidth()) {

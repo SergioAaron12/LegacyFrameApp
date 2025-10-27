@@ -35,7 +35,7 @@ private const val ACTIVO_ESTADO_ID = 1
         OrderEntity::class      // <--- Órdenes / compras
     ],
     version = 8,              // bump version for new test user
-    exportSchema = true
+    exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
 

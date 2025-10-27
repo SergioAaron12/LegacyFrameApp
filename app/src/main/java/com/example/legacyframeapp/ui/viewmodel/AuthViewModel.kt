@@ -452,11 +452,11 @@ class AuthViewModel(
         }
     }
 
-    // Valida que el precio tenga solo dígitos y máximo 5 caracteres
+    // Valida que el precio tenga solo dígitos y máximo 6 caracteres
     private fun validatePriceMax5Digits(price: String): String? {
         if (price.isBlank()) return "El precio es obligatorio"
         if (!price.all { it.isDigit() }) return "Solo números"
-        if (price.length > 5) return "Máximo 5 dígitos"
+        if (price.length > 6) return "Máximo 6 dígitos"
         // Validación de mínimo
         val value = runCatching { price.toInt() }.getOrNull() ?: return "Solo números"
         if (value < 1000) return "Mínimo 1000"
@@ -650,6 +650,12 @@ class AuthViewModel(
     fun deleteProduct(product: ProductEntity) {
         viewModelScope.launch {
             productRepository.delete(product)
+        }
+    }
+    
+    fun deleteCuadro(cuadro: CuadroEntity) {
+        viewModelScope.launch {
+            cuadroRepository.delete(cuadro)
         }
     }
 
