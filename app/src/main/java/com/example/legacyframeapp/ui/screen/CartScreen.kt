@@ -5,10 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Photo // Para placeholder
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCartCheckout
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -18,7 +15,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -29,8 +25,7 @@ import com.example.legacyframeapp.data.local.cart.CartItemEntity
 import com.example.legacyframeapp.domain.ImageStorageHelper
 import com.example.legacyframeapp.ui.components.formatWithThousands
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
-import java.io.File
-import androidx.compose.foundation.shape.RoundedCornerShape // Asegúrate que esté importado
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextOverflow
 
 // Pantalla de Carrito (con ViewModel): obtiene items y total, maneja acciones de compra

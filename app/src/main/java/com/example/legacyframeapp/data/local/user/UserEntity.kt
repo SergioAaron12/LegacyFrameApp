@@ -13,16 +13,15 @@ data class UserEntity(
     val estadoId: Int,
 
     // --- CAMPOS OBLIGATORIOS PARA EL USUARIO (EN EL FORMULARIO DE REGISTRO) ---
-    // (Porque no tienen '?' ni un valor por defecto como '= null')
     val nombre: String,
     val rut: String,
     val dv: String,
     val phone: Int,
     val email: String,
     val password: String,
-    val apellido: String?,          //  OPCIONAL.
-    val calle: String? = null,      // OPCIONAL.
-    val numero: String? = null,     //  OPCIONAL.
-    val departamento: String? = null, //  OPCIONAL.
-    val comunaId: Int? = null       //  OPCIONAL.
+    val apellido: String?,
+    val calle: String? = null,
+    val numero: String? = null,
+    val departamento: String? = null,
+    val comunaId: Int? = null
 )

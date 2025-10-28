@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,7 +29,6 @@ import com.example.legacyframeapp.R
 import com.example.legacyframeapp.data.local.product.ProductEntity
 import com.example.legacyframeapp.ui.components.AppButton
 import coil.compose.AsyncImage
-import java.io.File
 
 
 
@@ -203,7 +201,6 @@ fun HomeScreen(
             }
         }
 
-        // (CTA inferior eliminado a solicitud del usuario)
     }
 }
 

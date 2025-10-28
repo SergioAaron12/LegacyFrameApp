@@ -1,6 +1,6 @@
 package com.example.legacyframeapp.ui.viewmodel
 
-import android.app.Application // <-- 1. AÑADIR IMPORT
+import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.example.legacyframeapp.data.repository.UserRepository
@@ -11,7 +11,7 @@ import com.example.legacyframeapp.data.local.storage.UserPreferences
 import com.example.legacyframeapp.data.repository.OrderRepository
 
 class AuthViewModelFactory(
-    private val application: Application, // <-- 2. AÑADIR AL CONSTRUCTOR
+    private val application: Application,
     private val userRepository: UserRepository,
     private val productRepository: ProductRepository,
     private val cuadroRepository: CuadroRepository,
@@ -25,7 +25,7 @@ class AuthViewModelFactory(
         if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
             // Pasamos los 4 repositorios Y la aplicación
             return AuthViewModel(
-                application = application, // <-- 3. PASARLO AQUÍ
+                application = application,
                 userRepository = userRepository,
                 productRepository = productRepository,
                 cuadroRepository = cuadroRepository,

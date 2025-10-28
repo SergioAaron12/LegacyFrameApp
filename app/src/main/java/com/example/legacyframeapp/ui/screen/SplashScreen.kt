@@ -30,7 +30,6 @@ fun SplashScreen(onFinished: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         // Imagen estática desde assets a pantalla completa.
-        // Coloca tu archivo (el que enviaste) como "splash.png" en app/src/main/assets/.
         AsyncImage(
             model = "file:///android_asset/splash.png",
             contentDescription = "Splash imagen",

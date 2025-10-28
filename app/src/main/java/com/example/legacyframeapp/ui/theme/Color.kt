@@ -2,7 +2,6 @@ package com.example.legacyframeapp.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Paleta Café (según Legacy-Frames)
 val PrimaryBrown = Color(0xFF8B5C2A)   // --primary-color
 val SecondaryBrown = Color(0xFFA6784E) // --secondary-color
 val AccentBrown = Color(0xFFD4A574)    // --accent-color
