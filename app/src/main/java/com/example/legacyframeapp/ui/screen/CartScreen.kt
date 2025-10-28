@@ -1,251 +1,228 @@
 package com.example.legacyframeapp.ui.screen
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material3.Button
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.filled.Photo // Para placeholder
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.ShoppingCartCheckout
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.legacyframeapp.R
 import com.example.legacyframeapp.data.local.cart.CartItemEntity
+import com.example.legacyframeapp.domain.ImageStorageHelper
+import com.example.legacyframeapp.ui.components.formatWithThousands
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import java.io.File
+import androidx.compose.foundation.shape.RoundedCornerShape // Asegúrate que esté importado
+import androidx.compose.ui.text.style.TextOverflow
 
-// -----------------------------------------------------------------
-// 1. Composable "Stateful" (Conectado al ViewModel)
-// -----------------------------------------------------------------
+// --- Stateful Composable (Conecta con ViewModel) ---
 @Composable
 fun CartScreenVm(
     vm: AuthViewModel,
-    onNavigateBack: () -> Unit,
-    onCheckout: () -> Unit = {}
+    onNavigateBack: () -> Unit
 ) {
     val items by vm.cartItems.collectAsStateWithLifecycle()
     val total by vm.cartTotal.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-
-    // Acción de checkout: compone mensaje, abre WhatsApp y limpia el carrito
-    val doCheckout = {
-        val lines = items.joinToString("\n") { "- ${it.name} x${it.quantity} = ${formatPrice(it.price * it.quantity)}" }
-        val message = "Pedido Legacy Frames:\n$lines\nTotal: ${formatPrice(total)}"
-        val url = "https://api.whatsapp.com/send?phone=56945621740&text=" + android.net.Uri.encode(message)
-        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-        context.startActivity(intent)
-        vm.recordOrder(items, total)
-        vm.clearCart()
-    }
 
     CartScreen(
         items = items,
         total = total,
-        onIncrement = { item -> vm.updateCartQuantity(item, item.quantity + 1) },
-        onDecrement = { item ->
-            val newQty = item.quantity - 1
-            if (newQty <= 0) vm.removeFromCart(item) else vm.updateCartQuantity(item, newQty)
+        onRemoveOne = { item -> vm.updateCartQuantity(item, item.quantity - 1) },
+        onAddOne = { item -> vm.updateCartQuantity(item, item.quantity + 1) },
+        onRemoveItem = vm::removeFromCart,
+        onPurchase = {
+            vm.recordOrder(items, total)
+            vm.showPurchaseNotification()
+            vm.clearCart()
+            onNavigateBack()
         },
-        onRemove = { vm.removeFromCart(it) },
-        onCheckout = doCheckout,
         onBack = onNavigateBack
     )
 }
 
-// -----------------------------------------------------------------
-// 2. Composable "Stateless" (Solo UI)
-// -----------------------------------------------------------------
+// --- Stateless Composable (Solo UI) ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
     items: List<CartItemEntity>,
     total: Int,
-    onIncrement: (CartItemEntity) -> Unit,
-    onDecrement: (CartItemEntity) -> Unit,
-    onRemove: (CartItemEntity) -> Unit,
-    onCheckout: () -> Unit,
+    onRemoveOne: (CartItemEntity) -> Unit,
+    onAddOne: (CartItemEntity) -> Unit,
+    onRemoveItem: (CartItemEntity) -> Unit,
+    onPurchase: () -> Unit,
     onBack: () -> Unit
 ) {
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Mi Carrito") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
-                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
-                ),
+                title = { Text("Carrito de Compras") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Atrás")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
         },
         bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(16.dp)
-            ) {
-                HorizontalDivider()
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Total:",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = formatPrice(total),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                Button(
-                    onClick = onCheckout,
-                    enabled = items.isNotEmpty(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp)
-                ) {
-                    Text("Finalizar compra")
+            if (items.isNotEmpty()) {
+                Surface(shadowElevation = 8.dp) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text("Total:", style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                // --- CORRECCIÓN AQUÍ (Total) ---
+                                text = "$ ${formatWithThousands(total.toString())}",
+                                // -------------------------------
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Button(onClick = onPurchase) {
+                            Icon(Icons.Default.ShoppingCartCheckout, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Comprar")
+                        }
+                    }
                 }
             }
         }
     ) { innerPadding ->
         if (items.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("Tu carrito está vacío")
+            Box( /* ... Mensaje Carrito Vacío ... */ ) {
+                Text("Tu carrito está vacío.", color = Color.Gray)
             }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(items, key = { it.id }) { item ->
-                    CartItemRow(
+                    CartItemRow( // Llama a la fila corregida
                         item = item,
-                        onIncrement = { onIncrement(item) },
-                        onDecrement = { onDecrement(item) },
-                        onRemove = { onRemove(item) }
+                        onRemoveOne = { onRemoveOne(item) },
+                        onAddOne = { onAddOne(item) },
+                        onRemoveItem = { onRemoveItem(item) }
                     )
-                    HorizontalDivider()
+                    HorizontalDivider() // Separador
                 }
-                item { Spacer(modifier = Modifier.size(88.dp)) }
             }
         }
     }
 }
 
-// -----------------------------------------------------------------
-// 3. Fila para 1 item del carrito
-// -----------------------------------------------------------------
+// --- Fila para mostrar un item del carrito (CON CORRECCIONES .toString()) ---
 @Composable
-private fun CartItemRow(
+fun CartItemRow(
     item: CartItemEntity,
-    onIncrement: () -> Unit,
-    onDecrement: () -> Unit,
-    onRemove: () -> Unit,
+    onRemoveOne: () -> Unit,
+    onAddOne: () -> Unit,
+    onRemoveItem: () -> Unit
 ) {
     val context = LocalContext.current
-    val placeholder = rememberVectorPainter(image = Icons.Default.Photo)
+    val placeholderDrawable = R.drawable.ic_launcher_foreground // O tu placeholder
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                val model: Any? = when {
-                    item.imagePath.isNullOrBlank() -> null
-                    item.imagePath.startsWith("http") -> item.imagePath
-                    File(item.imagePath).exists() -> File(item.imagePath)
-                    else -> {
-                        val resId = context.resources.getIdentifier(item.imagePath, "drawable", context.packageName)
-                        if (resId != 0) resId else null
-                    }
+    // Lógica de carga de imagen (sin cambios)
+    val imageRequest = remember(item.imagePath) {
+        val dataToLoad: Any? = item.imagePath?.let { path ->
+            when {
+                path.isBlank() -> null
+                path.startsWith("http", ignoreCase = true) -> path
+                ImageStorageHelper.getImageFile(context, path).exists() ->
+                    ImageStorageHelper.getImageFile(context, path)
+                else -> {
+                    val resourceId = context.resources.getIdentifier(path, "drawable", context.packageName)
+                    if (resourceId != 0) resourceId else null
                 }
-                AsyncImage(
-                    model = model,
-                    contentDescription = item.name,
-                    placeholder = placeholder,
-                    error = placeholder,
-                    modifier = Modifier.size(56.dp)
-                )
-                Spacer(modifier = Modifier.size(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(text = item.name, style = MaterialTheme.typography.titleMedium)
-                    Text(text = formatPrice(item.price), style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-            IconButton(onClick = onRemove) {
-                Icon(Icons.Default.Delete, contentDescription = "Eliminar")
             }
         }
+        ImageRequest.Builder(context)
+            .data(dataToLoad).placeholder(placeholderDrawable).error(placeholderDrawable).crossfade(true).build()
+    }
+
+    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+        // --- Fila Superior ---
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
+            verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onDecrement) {
-                    Text("-")
-                }
-                Text(text = item.quantity.toString(), modifier = Modifier.padding(horizontal = 8.dp))
-                IconButton(onClick = onIncrement) {
-                    Text("+")
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                AsyncImage(
+                    model = imageRequest,
+                    contentDescription = item.name,
+                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(4.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(text = item.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        // --- CORRECCIÓN AQUÍ (Precio Unitario) ---
+                        text = "$ ${formatWithThousands(item.price.toString())}",
+                        // -----------------------------------------
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray
+                    )
                 }
             }
-            Text(text = "Subtotal: ${formatPrice(item.price * item.quantity)}")
+            IconButton(onClick = onRemoveItem, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Default.Delete, contentDescription = "Eliminar del carrito", tint = MaterialTheme.colorScheme.error)
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // --- Fila Inferior ---
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Controles +/-/Cantidad
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                OutlinedButton(onClick = onRemoveOne, modifier = Modifier.size(36.dp), contentPadding = PaddingValues(0.dp)) { Text("-") }
+                Text(item.quantity.toString(), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp))
+                OutlinedButton(onClick = onAddOne, modifier = Modifier.size(36.dp), contentPadding = PaddingValues(0.dp)) { Text("+") }
+            }
+            // Subtotal del item
+            Text(
+                // --- CORRECCIÓN AQUÍ (Subtotal) ---
+                text = "Subtotal: $ ${formatWithThousands((item.price * item.quantity).toString())}",
+                // ----------------------------------
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
-
-private fun formatPrice(value: Int): String = "$" + String.format("%,d", value).replace(',', '.')

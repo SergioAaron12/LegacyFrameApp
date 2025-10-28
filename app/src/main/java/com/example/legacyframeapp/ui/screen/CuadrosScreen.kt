@@ -1,288 +1,236 @@
 package com.example.legacyframeapp.ui.screen
-import android.content.Intent
-import android.net.Uri
+
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.AddShoppingCart // Icono de carrito para IconButton
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.legacyframeapp.data.local.cuadro.CuadroEntity
-import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import coil.compose.AsyncImage
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import java.io.File
+import coil.request.ImageRequest
+import com.example.legacyframeapp.R
+import com.example.legacyframeapp.data.local.cuadro.CuadroEntity
+import com.example.legacyframeapp.domain.ImageStorageHelper
+import com.example.legacyframeapp.ui.components.formatWithThousands
+import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
+// --- Stateful Composable (Conecta con ViewModel) ---
 @Composable
 fun CuadrosScreenVm(
     vm: AuthViewModel,
     onAddCuadro: () -> Unit
 ) {
+    // --- USA LA LISTA COMPLETA, SIN FILTRO ---
     val cuadros by vm.cuadros.collectAsStateWithLifecycle()
-    val categories by vm.cuadroCategories.collectAsStateWithLifecycle()
-    val filter by vm.cuadroFilter.collectAsStateWithLifecycle()
+    // -----------------------------------------
+    // val categories by vm.cuadroCategories.collectAsStateWithLifecycle() // Ya no se usa
+    // val filter by vm.cuadroFilter.collectAsStateWithLifecycle() // Ya no se usa
     val session by vm.session.collectAsStateWithLifecycle()
 
     CuadrosScreen(
-        cuadros = cuadros,
-        categories = categories,
-        selectedCategory = filter,
-        onCategorySelect = vm::setCuadroFilter,
+        cuadros = cuadros, // Pasa la lista completa
+        // categories = categories, // Ya no se pasa
+        // selectedCategory = filter, // Ya no se pasa
+        // onCategorySelect = vm::setCuadroFilter, // Ya no se pasa
         isAdmin = session.isAdmin,
         onAddCuadro = onAddCuadro,
-        // --- ¡LÍNEA CORREGIDA! ---
-        // Llama a la función específica para "Cuadros"
-        onAddToCart = vm::addCuadroToCart
+        onAddToCart = { cuadro -> vm.addCuadroToCart(cuadro) }
     )
 }
 
-@OptIn(ExperimentalLayoutApi::class) // Necesario para FlowRow
+// --- Stateless Composable (Solo UI) ---
+@OptIn(ExperimentalMaterial3Api::class) // Quita ExperimentalLayoutApi si no usas FlowRow
 @Composable
 fun CuadrosScreen(
     cuadros: List<CuadroEntity>,
-    categories: List<String>,
-    selectedCategory: String,
-    onCategorySelect: (String) -> Unit,
+    // Quita parámetros de categorías y filtro
+    // categories: List<String>,
+    // selectedCategory: String,
+    // onCategorySelect: (String) -> Unit,
     isAdmin: Boolean,
     onAddCuadro: () -> Unit,
-    onAddToCart: (CuadroEntity) -> Unit // <-- Asegúrate de que reciba la entidad
+    onAddToCart: (CuadroEntity) -> Unit
 ) {
-    val context = LocalContext.current
+    // val context = LocalContext.current // No se usa directamente aquí ahora
+    // val green = Color(0xFF2E7D32) // No se usa directamente aquí ahora
 
-    // ... (El Scaffold y el FloatingActionButton están bien) ...
     Scaffold(
         floatingActionButton = {
-            AnimatedVisibility(visible = isAdmin, /* ... */) {
-                FloatingActionButton(onClick = onAddCuadro, /* ... */) {
+            AnimatedVisibility(
+                visible = isAdmin,
+                enter = scaleIn() + fadeIn(),
+                exit = scaleOut() + fadeOut()
+            ) {
+                FloatingActionButton(onClick = onAddCuadro) {
                     Icon(Icons.Default.Add, contentDescription = "Añadir Cuadro")
                 }
             }
         }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp), // Padding inferior por FAB
+            verticalArrangement = Arrangement.spacedBy(16.dp) // Espacio entre tarjetas
         ) {
+            // --- QUITA LOS FILTROS DE CATEGORÍA ---
+            // item {
+            //     FlowRow(...) { ... FilterChip ... }
+            // }
+            // --------------------------------------
 
-            // ... (El 'item' para los FilterChip está bien) ...
-
-            // --- REVISIÓN DE 'items' ---
-            items(cuadros, key = { it.id }) { cuadro ->
-                CuadroCard(
-                    cuadro = cuadro,
-                    // --- ¡CORREGIDO! ---
-                    // Pasa el 'cuadro' específico a la función
-                    onAddToCart = { onAddToCart(cuadro) },
-                    onContactWhatsApp = {
-                        val text = Uri.encode("Hola, me interesa el cuadro: ${cuadro.title}")
-                        val url = "https://api.whatsapp.com/send?phone=56945621740&text=$text"
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                        context.startActivity(intent)
-                    }
-                )
+            // --- Lista de Cuadros ---
+            if (cuadros.isEmpty()) {
+                item {
+                    Text(
+                        text = "No hay cuadros disponibles.", // Mensaje simplificado
+                        modifier = Modifier.padding(top = 20.dp).fillMaxWidth(),
+                        textAlign = TextAlign.Center,
+                        color = Color.Gray
+                    )
+                }
+            } else {
+                items(cuadros, key = { it.id }) { cuadro ->
+                    // --- USA EL CuadroCard MODIFICADO ---
+                    CuadroCard(
+                        cuadro = cuadro,
+                        onAddToCart = { onAddToCart(cuadro) }
+                        // Quita onContactWhatsApp
+                    )
+                    // ------------------------------------
+                }
             }
         }
     }
 }
 
+// --- Tarjeta para mostrar un Cuadro (MODIFICADA para ser idéntica a ProductCard) ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun CuadroCard(
+fun CuadroCard(
     cuadro: CuadroEntity,
-    onAddToCart: () -> Unit,
-    onContactWhatsApp: () -> Unit
+    onAddToCart: () -> Unit
+    // Quita onContactWhatsApp
 ) {
     val context = LocalContext.current
-    val placeholder = rememberVectorPainter(image = Icons.Default.Photo)
+    val placeholderDrawable = R.drawable.ic_launcher_foreground // O tu placeholder
+
+    // Lógica de carga de imagen (sin cambios)
+    val imageRequest = remember(cuadro.imagePath) {
+        val dataToLoad: Any? = when {
+            cuadro.imagePath.isBlank() -> null
+            cuadro.imagePath.startsWith("http", ignoreCase = true) -> cuadro.imagePath
+            cuadro.imagePath.contains("_") && ImageStorageHelper.getImageFile(context, cuadro.imagePath).exists() ->
+                ImageStorageHelper.getImageFile(context, cuadro.imagePath)
+            else -> {
+                val resourceId = context.resources.getIdentifier(cuadro.imagePath, "drawable", context.packageName)
+                if (resourceId != 0) resourceId else null
+            }
+        }
+        ImageRequest.Builder(context)
+            .data(dataToLoad).placeholder(placeholderDrawable).error(placeholderDrawable).crossfade(true).build()
+    }
+
+    // --- DISEÑO IDÉNTICO A ProductCard ---
     Card(
         modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = RoundedCornerShape(8.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Imagen del cuadro con Coil resolviendo URL/archivo/recurso; placeholder en ausencia
-            val model: Any? = when {
-                cuadro.imagePath.isNotBlank() && cuadro.imagePath.startsWith("http") -> cuadro.imagePath
-                cuadro.imagePath.isNotBlank() && File(cuadro.imagePath).exists() -> File(cuadro.imagePath)
-                cuadro.imagePath.isNotBlank() -> {
-                    val resId = context.resources.getIdentifier(cuadro.imagePath, "drawable", context.packageName)
-                    if (resId != 0) resId else null
-                }
-                else -> null
-            }
+            // Imagen a la izquierda
             AsyncImage(
-                model = model,
+                model = imageRequest,
                 contentDescription = cuadro.title,
-                modifier = Modifier.size(100.dp),
-                contentScale = ContentScale.Crop,
-                placeholder = placeholder,
-                error = placeholder
+                modifier = Modifier
+                    .size(90.dp) // Tamaño como en ProductCard
+                    .clip(RoundedCornerShape(6.dp)),
+                contentScale = ContentScale.Crop
             )
 
             Spacer(Modifier.width(16.dp))
 
-            // Contenido principal
+            // Columna para el texto y botón carrito
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f) // Ocupa el espacio restante
             ) {
                 Text(
                     text = cuadro.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleMedium, // Mismo estilo que ProductCard
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(4.dp))
-                // Badge de categoría similar a Molduras
-                val (badgeBg, badgeFg) = categoryColors(cuadro.category)
-                AssistChip(
-                    onClick = {},
-                    label = { Text(cuadro.category.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }) },
-                    colors = AssistChipDefaults.assistChipColors(
-                        containerColor = badgeBg,
-                        labelColor = badgeFg
-                    )
+                // Muestra tamaño y material (si existen)
+                Text(
+                    text = listOfNotNull(
+                        cuadro.size.takeIf { it.isNotBlank() },
+                        cuadro.material.takeIf { it.isNotBlank() }
+                    ).joinToString(" / "),
+                    style = MaterialTheme.typography.bodySmall, // Estilo pequeño
+                    color = Color.Gray,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+                // NO mostramos artista para igualar a ProductCard
+                // if (cuadro.artist != null) { ... }
                 Spacer(Modifier.height(4.dp))
-                
                 Text(
                     text = cuadro.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2
+                    style = MaterialTheme.typography.bodySmall, // Mismo estilo que ProductCard
+                    maxLines = 2, // Limita a 2 líneas como ProductCard
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.height(4.dp))
-                
-                Row {
-                    Text(
-                        text = "Tamaño: ${cuadro.size}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Text(
-                        text = "Material: ${cuadro.material}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
-                    )
-                }
-                
-                if (cuadro.artist != null) {
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = "Artista: ${cuadro.artist}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray,
-                        fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                    )
-                }
-                
                 Spacer(Modifier.height(8.dp))
-                
-                Text(
-                    text = "$ ${cuadro.price}",
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                
-                Spacer(Modifier.height(8.dp))
-                
-                // Botones de acción
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    val green = Color(0xFF2E7D32)
-                    Button(
-                        onClick = onContactWhatsApp,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = green,
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Text("Consultar", style = MaterialTheme.typography.bodySmall)
-                    }
 
-                    Button(
-                        onClick = onAddToCart,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = green,
-                            contentColor = Color.White
-                        )
-                    ) {
+                // Fila inferior SOLO para Precio y Botón Carrito
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween // Separa precio y botón
+                ) {
+                    // Precio
+                    Text(
+                        text = "$ ${formatWithThousands(cuadro.price.toString())}",
+                        style = MaterialTheme.typography.bodyLarge, // Mismo estilo que ProductCard
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    // Botón Añadir al Carrito (IconButton como en ProductCard)
+                    IconButton(onClick = onAddToCart, modifier = Modifier.size(36.dp)) { // Mismo tamaño
                         Icon(
-                            Icons.Default.ShoppingCart,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
+                            imageVector = Icons.Default.AddShoppingCart, // Mismo icono
+                            contentDescription = "Añadir al carrito",
+                            tint = MaterialTheme.colorScheme.primary // Mismo tinte
                         )
-                        Spacer(Modifier.width(4.dp))
-                        Text("Carrito", style = MaterialTheme.typography.bodySmall)
                     }
+                    // QUITA el botón de WhatsApp
                 }
             }
         }
     }
-}
-
-@Composable
-private fun categoryColors(category: String): Pair<Color, Color> {
-    return when (category.lowercase()) {
-        "grecas" -> Color(0xFF8B5C2A) to Color.White // primary
-        "rusticas" -> Color(0xFF0DCAF0) to Color(0xFF07323A) // info
-        "naturales" -> Color(0xFF198754) to Color.White // success
-        "nativas" -> Color(0xFF6C757D) to Color.White // secondary
-        "finger-joint", "fingerjoint", "finger_joint" -> Color(0xFFFFC107) to Color(0xFF3A2E00) // warning
-        else -> MaterialTheme.colorScheme.secondary to MaterialTheme.colorScheme.onSecondary
-    }
+    // ---------------------------------
 }

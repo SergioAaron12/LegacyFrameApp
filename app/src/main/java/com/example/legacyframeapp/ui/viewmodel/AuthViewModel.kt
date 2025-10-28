@@ -9,7 +9,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import androidx.lifecycle.AndroidViewModel // <-- REPARADO
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.legacyframeapp.R
 import com.example.legacyframeapp.data.local.cart.CartItemEntity
@@ -23,17 +23,20 @@ import com.example.legacyframeapp.data.repository.UserRepository
 import com.example.legacyframeapp.domain.ImageStorageHelper
 import com.example.legacyframeapp.domain.validation.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.* // Asegúrate de tener flow.* para combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.net.URL
-import kotlinx.coroutines.flow.first
+// import kotlinx.coroutines.flow.first // Podría ser útil
 import com.example.legacyframeapp.data.local.storage.UserPreferences
 import com.example.legacyframeapp.data.local.order.OrderEntity
 import com.example.legacyframeapp.data.repository.OrderRepository
+import java.text.NumberFormat // Para formatear precios si es necesario
+import java.util.Locale // Para formatear precios si es necesario
+
 
 // --- ESTADOS DE UI ---
 
@@ -77,12 +80,11 @@ data class SessionUiState(
     val isAdmin: Boolean = false
 )
 
-// --- AddProductUiState (REPARADA) ---
 data class AddProductUiState(
     val name: String = "",
     val description: String = "",
     val price: String = "",
-    val imageUri: Uri? = null, // <-- REPARADO: Ahora es Uri? (nullable)
+    val imageUri: Uri? = null,
     val nameError: String? = null,
     val priceError: String? = null,
     val imageError: String? = null,
@@ -91,9 +93,7 @@ data class AddProductUiState(
     val canSubmit: Boolean = false,
     val errorMsg: String? = null
 )
-// -----------------------------------------------------------
 
-// --- AddCuadroUiState ---
 data class AddCuadroUiState(
     val title: String = "",
     val description: String = "",
@@ -102,6 +102,7 @@ data class AddCuadroUiState(
     val material: String = "",
     val category: String = "",
     val imageUri: Uri? = null,
+    val artist: String? = null, // Añadido Artist
     val titleError: String? = null,
     val priceError: String? = null,
     val imageError: String? = null,
@@ -112,13 +113,13 @@ data class AddCuadroUiState(
 )
 
 class AuthViewModel(
-    application: Application, // <-- REPARADO
+    application: Application,
     private val userRepository: UserRepository,
     private val productRepository: ProductRepository,
     private val cuadroRepository: CuadroRepository,
     private val cartRepository: CartRepository,
     private val userPreferences: UserPreferences,
-    private val orderRepository: OrderRepository? = null
+    private val orderRepository: OrderRepository? = null // Hacerlo nullable por si acaso
 ) : AndroidViewModel(application) {
 
     // --- (Login, Register, Session) ---
@@ -136,24 +137,44 @@ class AuthViewModel(
         productRepository.getAllProducts()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
-    // --- CORREGIDO (Categories) ---
     private val _productCategories = MutableStateFlow<List<String>>(emptyList())
     val productCategories: StateFlow<List<String>> = _productCategories.asStateFlow()
 
     private val _productFilter = MutableStateFlow("all")
     val productFilter: StateFlow<String> = _productFilter.asStateFlow()
 
+    // Flujo filtrado de Productos
+    val filteredProducts: StateFlow<List<ProductEntity>> =
+        combine(products, productFilter) { productsList, filter ->
+            if (filter == "all") productsList else productsList.filter { it.category.equals(filter, ignoreCase = true) }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
+
+
     // --- (Cuadros) ---
     val cuadros: StateFlow<List<CuadroEntity>> =
         cuadroRepository.getAllCuadros()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
-    // --- CORREGIDO (Categories) ---
     private val _cuadroCategories = MutableStateFlow<List<String>>(emptyList())
     val cuadroCategories: StateFlow<List<String>> = _cuadroCategories.asStateFlow()
 
     private val _cuadroFilter = MutableStateFlow("all")
     val cuadroFilter: StateFlow<String> = _cuadroFilter.asStateFlow()
+
+    // --- DEFINICIÓN AÑADIDA ---
+    val filteredCuadros: StateFlow<List<CuadroEntity>> =
+        combine(cuadros, cuadroFilter) { cuadrosList, filter -> // Combina cuadros y filtro
+            if (filter == "all") {
+                cuadrosList // Si el filtro es "all", devuelve todos
+            } else {
+                cuadrosList.filter { it.category.equals(filter, ignoreCase = true) } // Filtra por categoría
+            }
+        }.stateIn( // Convierte el resultado en un StateFlow
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000L),
+            initialValue = emptyList() // Empieza vacío
+        )
+    // -------------------------
 
     // --- (Carrito) ---
     val cartItems: StateFlow<List<CartItemEntity>> = cartRepository.items()
@@ -164,32 +185,19 @@ class AuthViewModel(
     val cartItemCount: StateFlow<Int> = cartRepository.count()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 0)
 
-    // Preferencias: Modo oscuro
+    // --- (Preferencias) ---
     val darkMode: StateFlow<Boolean> =
         userPreferences.isDarkMode
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000L),
-                initialValue = false
-            )
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), false)
 
-    // Preferencias: Avatar ("male" | "female")
     val avatarType: StateFlow<String> =
         userPreferences.avatarType
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000L),
-                initialValue = "male"
-            )
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "male")
 
-    // Historial de compras (si se inyecta repositorio)
+    // --- (Historial de compras) ---
     val orders: StateFlow<List<OrderEntity>> =
-        (orderRepository?.getAll() ?: kotlinx.coroutines.flow.flow { emit(emptyList()) })
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000L),
-                initialValue = emptyList()
-            )
+        (orderRepository?.getAll() ?: flowOf(emptyList())) // Usa flowOf si es nulo
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
 
     // --- (Add Product) ---
     private val _addProduct = MutableStateFlow(AddProductUiState())
@@ -203,73 +211,30 @@ class AuthViewModel(
     // --- BLOQUE init ---
     init {
         viewModelScope.launch {
+            // Cargar categorías
             _productCategories.value = productRepository.getAllCategories()
             _cuadroCategories.value = cuadroRepository.getAllCategories()
+
+            // Asegurar usuario admin
+            userRepository.ensureAdminUserExists()
+
+            // Aplicar ajustes de catálogo (si es necesario)
+            // applyKnownCatalogAdjustments()
+            // replaceCatalogWithSelected() // O usar este si quieres reemplazar
+        }
+        // Restaurar estado de sesión basado en preferencias
+        viewModelScope.launch {
+            userPreferences.isLoggedIn.collect { loggedIn ->
+                if (!loggedIn && session.value.isLoggedIn) {
+                    // Si DataStore dice no logueado pero la sesión sí, desloguear
+                    logout()
+                }
+                // (La lógica de login actualiza DataStore y la sesión, así que no necesitamos más aquí)
+            }
         }
     }
 
-    // --- (Funciones de Login/Registro) ---
-    // (Tu código para onLoginEmailChange, onLoginPassChange, onRegister...Change, etc.
-    //  está bien y va aquí. Las omito para que la respuesta no sea kilométrica,
-    //  pero asegúrate de que estén en tu archivo)
-    // ...
-    // ...
-
-    
-    // Ajustes puntuales del catálogo ya existente (ej: corrección de precios)
-    private suspend fun applyKnownCatalogAdjustments() {
-        try {
-            // Ajuste solicitado: "I 09 greca corazón" a 32000 CLP
-            val targetName = "I 09 greca corazón"
-            val p = productRepository.getProductByName(targetName)
-            if (p != null && p.price != 32000) {
-                productRepository.update(p.copy(price = 32000))
-            }
-
-            // Ajuste solicitado: "P 15 greca LA oro" a 20000 CLP
-            val targetName2 = "P 15 greca LA oro"
-            val p2 = productRepository.getProductByName(targetName2)
-            if (p2 != null && p2.price != 20000) {
-                productRepository.update(p2.copy(price = 20000))
-            }
-        } catch (_: Exception) { }
-    }
-
-    // Reemplaza el catálogo por los productos enviados por el usuario
-    private suspend fun replaceCatalogWithSelected() {
-        try {
-            // Define los productos seleccionados (imágenes se asignarán luego vía app)
-            val selected = listOf(
-                ProductEntity(
-                    name = "I 09 greca zo",
-                    description = "Elegante greca decorativa con diseño tradicional.",
-                    price = 37500,
-                    category = "grecas",
-                    imagePath = "moldura1" // imagen por defecto local
-                ),
-                ProductEntity(
-                    name = "I 09 greca corazón",
-                    description = "Greca con motivo de corazón, perfecta para marcos románticos.",
-                    price = 32000,
-                    category = "grecas",
-                    imagePath = "moldura2"
-                ),
-                ProductEntity(
-                    name = "P 15 greca LA oro",
-                    description = "Greca con acabado dorado, elegante y sofisticada.",
-                    price = 20000,
-                    category = "grecas",
-                    imagePath = "moldura3"
-                )
-            )
-
-            // Limpia e inserta solo los seleccionados
-            productRepository.deleteAll()
-            selected.forEach { productRepository.insert(it) }
-        } catch (_: Exception) { }
-    }
-
-    // Prefetch de imágenes remotas a almacenamiento local y actualización de DB
+    // --- Funciones de Prefetch ---
     fun prefetchProductImages(appContext: Context) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -280,14 +245,13 @@ class AuthViewModel(
                         val outFile = File(appContext.filesDir, safeName)
                         val ok = downloadToFile(p.imagePath, outFile)
                         if (ok) {
-                            productRepository.update(p.copy(imagePath = outFile.absolutePath))
+                            productRepository.update(p.copy(imagePath = outFile.name)) // Guarda solo el nombre
                         }
                     }
                 }
             } catch (_: Exception) { }
         }
     }
-
     private suspend fun downloadToFile(url: String, dest: File): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
             URL(url).openStream().use { input ->
@@ -300,13 +264,13 @@ class AuthViewModel(
             false
         }
     }
-
     private fun sanitizeFileName(name: String): String =
         name.lowercase()
             .replace(" ", "_")
             .replace(Regex("[^a-z0-9._-]"), "")
 
-    // --- Funciones on...Change para Login (Sin cambios) ---
+
+    // --- Funciones de Login/Registro ---
     fun onLoginEmailChange(email: String) {
         val emailError = validateEmail(email)
         _login.update {
@@ -327,8 +291,6 @@ class AuthViewModel(
             )
         }
     }
-
-    // (Aquí van todas tus funciones onRegister...Change)
     fun onRegisterNombreChange(nombre: String) {
         val nombreError = validateNameLettersOnly(nombre)
         _register.update { s ->
@@ -339,9 +301,8 @@ class AuthViewModel(
             )
         }
     }
-
     fun onRegisterApellidoChange(apellido: String) {
-        val apellidoError = validateApellido(apellido) // Usa tu validador (solo letras si no vacío)
+        val apellidoError = validateApellido(apellido)
         _register.update { s ->
             s.copy(
                 apellido = apellido,
@@ -350,9 +311,8 @@ class AuthViewModel(
             )
         }
     }
-
     fun onRegisterRutChange(rut: String) {
-        val rutError = validateRut(rut) // Usa tu validador
+        val rutError = validateRut(rut)
         val dvError = validateDv(_register.value.dv, rut)
         _register.update { s ->
             s.copy(
@@ -363,9 +323,8 @@ class AuthViewModel(
             )
         }
     }
-
     fun onRegisterDvChange(dv: String) {
-        val dvError = validateDv(dv, _register.value.rut) // Usa tu validador
+        val dvError = validateDv(dv, _register.value.rut)
         _register.update { s ->
             s.copy(
                 dv = dv.uppercase(),
@@ -374,7 +333,6 @@ class AuthViewModel(
             )
         }
     }
-
     fun onRegisterEmailChange(email: String) {
         val emailError = validateEmail(email)
         _register.update { s ->
@@ -417,7 +375,6 @@ class AuthViewModel(
             )
         }
     }
-
     private fun checkRegisterCanSubmit(s: RegisterUiState): Boolean {
         return s.nombreError == null && s.apellidoError == null &&
                 s.rutError == null && s.dvError == null &&
@@ -428,351 +385,39 @@ class AuthViewModel(
                 s.pass.isNotBlank() && s.confirm.isNotBlank()
     }
 
-    // --- LÓGICA DE AddProduct (RE-INTEGRADA) ---
-
-    fun onAddProductChange(
-        name: String = _addProduct.value.name,
-        description: String = _addProduct.value.description,
-        price: String = _addProduct.value.price
-    ) {
-        val nameError = if(name.isBlank()) "El nombre es obligatorio" else null
-        val priceError = validatePriceMax5Digits(price)
-        val currentImageUri = _addProduct.value.imageUri // Lee el Uri actual
-
-        _addProduct.update {
-            it.copy(
-                name = name,
-                description = description,
-                price = price,
-                nameError = nameError,
-                priceError = priceError,
-                // canSubmit depende de los errores Y de que la imagen no sea nula
-                canSubmit = nameError == null && priceError == null && currentImageUri != null && !it.isSaving
-            )
-        }
-    }
-
-    // Valida que el precio tenga solo dígitos y máximo 6 caracteres
-    private fun validatePriceMax5Digits(price: String): String? {
-        if (price.isBlank()) return "El precio es obligatorio"
-        if (!price.all { it.isDigit() }) return "Solo números"
-        if (price.length > 6) return "Máximo 6 dígitos"
-        // Validación de mínimo
-        val value = runCatching { price.toInt() }.getOrNull() ?: return "Solo números"
-        if (value < 1000) return "Mínimo 1000"
-        return null
-    }
-
-    // ---- Lógica AddCuadro ----
-    fun onAddCuadroChange(
-        title: String = _addCuadro.value.title,
-        description: String = _addCuadro.value.description,
-        price: String = _addCuadro.value.price,
-        size: String = _addCuadro.value.size,
-        material: String = _addCuadro.value.material,
-        category: String = _addCuadro.value.category
-    ) {
-        val titleError = if (title.isBlank()) "El título es obligatorio" else null
-        val priceError = validatePriceMax5Digits(price)
-        val currentImageUri = _addCuadro.value.imageUri
-
-        _addCuadro.update {
-            it.copy(
-                title = title,
-                description = description,
-                price = price,
-                size = size,
-                material = material,
-                category = category,
-                titleError = titleError,
-                priceError = priceError,
-                canSubmit = titleError == null && priceError == null && currentImageUri != null && !it.isSaving
-            )
-        }
-    }
-
-    fun onCuadroImageSelected(uri: Uri?) {
-        val titleError = _addCuadro.value.titleError
-        val priceError = _addCuadro.value.priceError
-        _addCuadro.update {
-            it.copy(
-                imageUri = uri,
-                imageError = if (uri == null) "Debe seleccionar una imagen" else null,
-                canSubmit = titleError == null && priceError == null && uri != null && !it.isSaving
-            )
-        }
-    }
-
-    fun saveCuadro(appContext: Context) {
-        val s = _addCuadro.value
-        if (!s.canSubmit || s.isSaving) return
-        if (s.imageUri == null) {
-            _addCuadro.update { it.copy(imageError = "Debe seleccionar una imagen", isSaving = false) }
-            return
-        }
-        _addCuadro.update { it.copy(isSaving = true, errorMsg = null) }
-
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val priceInt = s.price.toInt()
-                val savedName = ImageStorageHelper.saveImageToInternalStorage(appContext, s.imageUri)
-                val entity = CuadroEntity(
-                    title = s.title.trim(),
-                    description = s.description.trim(),
-                    price = priceInt,
-                    size = s.size.trim().ifBlank { "" },
-                    material = s.material.trim().ifBlank { "" },
-                    category = s.category.trim().ifBlank { "otros" },
-                    imagePath = savedName,
-                    isCustom = false,
-                    artist = null
-                )
-                cuadroRepository.insert(entity)
-                withContext(Dispatchers.Main) {
-                    _addCuadro.update { it.copy(isSaving = false, saveSuccess = true) }
-                }
-            } catch (e: NumberFormatException) {
-                withContext(Dispatchers.Main) {
-                    _addCuadro.update { it.copy(isSaving = false, errorMsg = "El precio ingresado no es válido.") }
-                }
-            } catch (e: IOException) {
-                withContext(Dispatchers.Main) {
-                    _addCuadro.update { it.copy(isSaving = false, errorMsg = "Error al guardar la imagen.") }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _addCuadro.update { it.copy(isSaving = false, errorMsg = e.message ?: "Error desconocido al guardar") }
-                }
-            }
-        }
-    }
-
-    fun clearAddCuadroState() {
-        _addCuadro.update { AddCuadroUiState() }
-    }
-
-    // --- FUNCIÓN RE-INTEGRADA ---
-    fun onImageSelected(uri: Uri?) {
-        val nameError = _addProduct.value.nameError
-        val priceError = _addProduct.value.priceError
-
-        _addProduct.update {
-            it.copy(
-                imageUri = uri,
-                imageError = if (uri == null) "Debe seleccionar una imagen" else null,
-                canSubmit = nameError == null && priceError == null && uri != null && !it.isSaving
-            )
-        }
-    }
-
-    // Función para guardar el producto (copia imagen a almacenamiento interno)
-    fun saveProduct(appContext: Context) {
-        val s = _addProduct.value
-
-        if (!s.canSubmit || s.isSaving) return
-        if (s.imageUri == null) { // Chequeo de nulidad
-            _addProduct.update { it.copy(imageError = "Debe seleccionar una imagen", isSaving = false) }
-            return
-        }
-
-        _addProduct.update { it.copy(isSaving = true, errorMsg = null) }
-
-        viewModelScope.launch(Dispatchers.IO) { // Usar IO para guardar archivos
-            try {
-                val priceInt = s.price.toInt()
-                val context = getApplication<Application>().applicationContext
-
-                // Copiamos la imagen (content:// o file://) al almacenamiento interno y guardamos el nombre
-                val finalImageName = try {
-                    ImageStorageHelper.saveImageToInternalStorage(appContext, s.imageUri)
-                } catch (e: Exception) {
-                    throw IllegalStateException("No se pudo guardar la imagen seleccionada")
-                }
-
-                val newProduct = ProductEntity(
-                    name = s.name.trim(),
-                    description = s.description.trim(),
-                    price = priceInt,
-                    imagePath = finalImageName, // <-- Guarda el nombre del archivo real
-                    category = "otros" // Categoría por defecto
-                )
-
-                productRepository.insert(newProduct)
-
-                withContext(Dispatchers.Main) { // Volver al hilo principal
-                    _addProduct.update { it.copy(isSaving = false, saveSuccess = true) }
-                }
-
-            } catch (e: NumberFormatException) {
-                withContext(Dispatchers.Main) {
-                    _addProduct.update { it.copy(isSaving = false, errorMsg = "El precio ingresado no es válido.") }
-                }
-            } catch (e: IOException) { // Captura de error de archivo
-                withContext(Dispatchers.Main) {
-                    _addProduct.update { it.copy(isSaving = false, errorMsg = "Error al guardar la imagen.") }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _addProduct.update { it.copy(isSaving = false, errorMsg = e.message ?: "Error desconocido al guardar") }
-                }
-            }
-        }
-    }
-
-    // --- FUNCIÓN RE-INTEGRADA ---
-    fun createTempImageUri(): Uri {
-        val context = getApplication<Application>().applicationContext
-
-        val imageDir = File(context.cacheDir, "images")
-        if (!imageDir.exists()) {
-            imageDir.mkdirs()
-        }
-        val tempFile = File.createTempFile(
-            "product_${System.currentTimeMillis()}", // Prefijo
-            ".jpg", // Sufijo
-            imageDir // Directorio
-        )
-
-        val authority = "com.example.legacyframeapp.fileprovider" // Debe coincidir con el Manifest
-
-        return FileProvider.getUriForFile(
-            context,
-            authority,
-            tempFile
-        )
-    }
-
-    // --- FUNCIÓN RE-INTEGRADA ---
-    fun clearAddProductState() {
-        _addProduct.update { AddProductUiState() } // Resetea (imageUri se vuelve null)
-    }
-
-    fun deleteProduct(product: ProductEntity) {
-        viewModelScope.launch {
-            productRepository.delete(product)
-        }
-    }
-    
-    fun deleteCuadro(cuadro: CuadroEntity) {
-        viewModelScope.launch {
-            cuadroRepository.delete(cuadro)
-        }
-    }
-
-    // --- (Filtros de tu compañero) ---
-    fun setProductFilter(category: String) { _productFilter.value = category }
-    fun setCuadroFilter(category: String) { _cuadroFilter.value = category }
-
-    // --- (Lógica de Carrito de tu compañero - está perfecta) ---
-    fun addProductToCart(p: ProductEntity) {
-        viewModelScope.launch {
-            cartRepository.addOrIncrement(
-                type = "product", refId = p.id, name = p.name,
-                price = p.price, imagePath = p.imagePath
-            )
-        }
-    }
-
-    fun addCuadroToCart(c: CuadroEntity) {
-        viewModelScope.launch {
-            cartRepository.addOrIncrement(
-                type = "cuadro", refId = c.id, name = c.title,
-                price = c.price, imagePath = c.imagePath
-            )
-        }
-    }
-
-    fun updateCartQuantity(item: CartItemEntity, newQty: Int) {
-        viewModelScope.launch { cartRepository.updateQuantity(item, newQty) }
-    }
-
-    fun removeFromCart(item: CartItemEntity) {
-        viewModelScope.launch { cartRepository.remove(item) }
-    }
-
-    fun clearCart() {
-        viewModelScope.launch { cartRepository.clear() }
-    }
-
-    suspend fun setDarkMode(enabled: Boolean) {
-        userPreferences.setDarkMode(enabled)
-    }
-
-    suspend fun setAvatarType(type: String) {
-        userPreferences.setAvatarType(type)
-    }
-
-    fun recordOrder(items: List<CartItemEntity>, total: Int) {
-        val repo = orderRepository ?: return
-        viewModelScope.launch(Dispatchers.IO) {
-            val summary = items.joinToString("\n") { "- ${it.name} x${it.quantity} = ${it.price * it.quantity}" }
-            repo.insert(
-                OrderEntity(
-                    dateMillis = System.currentTimeMillis(),
-                    itemsText = summary,
-                    total = total
-                )
-            )
-        }
-    }
-
-    // --- Admin: actualizar imagen de un producto existente ---
-    fun updateProductImage(appContext: Context, productId: Long, newImageUri: Uri, onDone: (Boolean, String?) -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val product = productRepository.getProductById(productId)
-                if (product == null) {
-                    withContext(Dispatchers.Main) { onDone(false, "Producto no encontrado") }
-                    return@launch
-                }
-                val savedPath = ImageStorageHelper.saveImageToInternalStorage(appContext, newImageUri)
-                productRepository.update(product.copy(imagePath = savedPath))
-                withContext(Dispatchers.Main) { onDone(true, null) }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) { onDone(false, e.message ?: "Error al actualizar imagen") }
-            }
-        }
-    }
-
-    // --- Login con Repositorio (Sin cambios) ---
-    // --- (Lógica de Login/Logout/Registro) ---
     fun submitLogin() {
         val s = _login.value
         if (s.emailError != null || s.passError != null || s.email.isBlank() || s.pass.isBlank()) {
             _login.update { it.copy(isSubmitting = false) }
             return
         }
-
         viewModelScope.launch {
             _login.update { it.copy(isSubmitting = true, errorMsg = null, success = false) }
             val result = userRepository.login(s.email, s.pass)
-            _login.update {
+            _login.update { loginState ->
                 if (result.isSuccess) {
                     val user = result.getOrNull()
-                    val isAdminCreds = s.email.equals("admin@legacyframes.cl", ignoreCase = true) && s.pass == "Admin123!"
+                    val isAdmin = (user?.rolId == 1) ||
+                            (s.email.equals("admin@legacyframes.cl", ignoreCase = true) && s.pass == "Admin123!")
                     _session.update { sessionState ->
-                        sessionState.copy(
-                            isLoggedIn = true,
-                            currentUser = user,
-                            isAdmin = (user?.rolId == 1) || isAdminCreds
-                        )
+                        sessionState.copy(isLoggedIn = true, currentUser = user, isAdmin = isAdmin)
                     }
-                    it.copy(isSubmitting = false, success = true, errorMsg = null)
+                    viewModelScope.launch { userPreferences.setLoggedIn(true) }
+                    loginState.copy(isSubmitting = false, success = true, errorMsg = null)
                 } else {
-                    it.copy(isSubmitting = false, success = false,
+                    loginState.copy(isSubmitting = false, success = false,
                         errorMsg = result.exceptionOrNull()?.message ?: "Credenciales inválidas")
                 }
             }
         }
     }
-
     fun logout() {
         viewModelScope.launch {
             _session.update { SessionUiState() }
             _login.update { LoginUiState() }
+            userPreferences.setLoggedIn(false)
         }
     }
-
     fun submitRegister() {
         val s = _register.value
         val canSubmitFinal = checkRegisterCanSubmit(s)
@@ -790,38 +435,259 @@ class AuthViewModel(
             return
         }
         if (s.isSubmitting) return
-
         val phoneInt: Int
-        try {
-            phoneInt = s.phone.toInt()
-        } catch (e: NumberFormatException) {
+        try { phoneInt = s.phone.toInt() } catch (e: NumberFormatException) {
             _register.update { it.copy(isSubmitting = false, errorMsg = "Error interno: El teléfono no es un número válido.") }
             return
         }
-
         viewModelScope.launch {
             _register.update { it.copy(isSubmitting = true, errorMsg = null, success = false) }
             val result = userRepository.register(
-                nombre = s.nombre,
-                apellido = s.apellido.ifBlank { null },
-                rut = s.rut,
-                dv = s.dv,
-                email = s.email,
-                password = s.pass,
-                phone = phoneInt
+                nombre = s.nombre, apellido = s.apellido.ifBlank { null }, rut = s.rut, dv = s.dv,
+                email = s.email, password = s.pass, phone = phoneInt
             )
             _register.update {
-                if (result.isSuccess) {
-                    it.copy(isSubmitting = false, success = true, errorMsg = null)
-                } else {
-                    it.copy(isSubmitting = false, success = false,
-                        errorMsg = result.exceptionOrNull()?.message ?: "No se pudo registrar")
+                if (result.isSuccess) { it.copy(isSubmitting = false, success = true, errorMsg = null) }
+                else { it.copy(isSubmitting = false, success = false, errorMsg = result.exceptionOrNull()?.message ?: "No se pudo registrar") }
+            }
+        }
+    }
+    fun clearLoginResult() { _login.update { it.copy(success = false, errorMsg = null) } }
+    fun clearRegisterResult() { _register.update { it.copy(success = false, errorMsg = null) } }
+
+
+    // --- LÓGICA DE AddProduct ---
+    fun onAddProductChange(
+        name: String = _addProduct.value.name,
+        description: String = _addProduct.value.description,
+        price: String = _addProduct.value.price
+    ) {
+        val nameError = if(name.isBlank()) "El nombre es obligatorio" else null
+        val priceError = validatePrice(price) // Usa el validador general
+        val currentImageUri = _addProduct.value.imageUri
+        _addProduct.update {
+            it.copy(
+                name = name, description = description, price = price,
+                nameError = nameError, priceError = priceError,
+                canSubmit = nameError == null && priceError == null && currentImageUri != null && !it.isSaving
+            )
+        }
+    }
+    fun onImageSelected(uri: Uri?) { // Para AddProduct
+        val nameError = _addProduct.value.nameError
+        val priceError = _addProduct.value.priceError
+        _addProduct.update {
+            it.copy(
+                imageUri = uri,
+                imageError = if (uri == null) "Debe seleccionar una imagen" else null,
+                canSubmit = nameError == null && priceError == null && uri != null && !it.isSaving
+            )
+        }
+    }
+    fun saveProduct(appContext: Context) {
+        val s = _addProduct.value
+        if (!s.canSubmit || s.isSaving) return
+        if (s.imageUri == null) {
+            _addProduct.update { it.copy(imageError = "Debe seleccionar una imagen", isSaving = false) }
+            return
+        }
+        _addProduct.update { it.copy(isSaving = true, errorMsg = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val priceInt = s.price.toInt()
+                val finalImageName = ImageStorageHelper.saveImageToInternalStorage(appContext, s.imageUri)
+                val newProduct = ProductEntity(
+                    name = s.name.trim(), description = s.description.trim(), price = priceInt,
+                    imagePath = finalImageName, category = "otros"
+                )
+                productRepository.insert(newProduct)
+                withContext(Dispatchers.Main) {
+                    _addProduct.update { it.copy(isSaving = false, saveSuccess = true) }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _addProduct.update { it.copy(isSaving = false, errorMsg = e.message ?: "Error al guardar") }
                 }
             }
         }
     }
+    fun clearAddProductState() { _addProduct.update { AddProductUiState() } }
+    fun createTempImageUri(): Uri {
+        val context = getApplication<Application>().applicationContext
+        val imageDir = File(context.cacheDir, "images").apply { mkdirs() }
+        val tempFile = File.createTempFile("product_${System.currentTimeMillis()}", ".jpg", imageDir)
+        val authority = "${context.packageName}.fileprovider"
+        return FileProvider.getUriForFile(context, authority, tempFile)
+    }
 
-    fun clearLoginResult() { _login.update { it.copy(success = false, errorMsg = null) } }
-    fun clearRegisterResult() { _register.update { it.copy(success = false, errorMsg = null) } }
+
+    // --- LÓGICA DE AddCuadro ---
+    fun onAddCuadroChange(
+        title: String = _addCuadro.value.title,
+        description: String = _addCuadro.value.description,
+        price: String = _addCuadro.value.price,
+        size: String = _addCuadro.value.size,
+        material: String = _addCuadro.value.material,
+        category: String = _addCuadro.value.category,
+        artist: String? = _addCuadro.value.artist
+    ) {
+        val titleError = if (title.isBlank()) "El título es obligatorio" else null
+        val priceError = when {
+            price.isBlank() -> "El precio es obligatorio"
+            !price.all { it.isDigit() } -> "Solo números"
+            price.length > 6 -> "Máximo 6 dígitos" // <-- Límite específico
+            price.toIntOrNull() == null -> "Precio inválido" // Verifica si es un número válido
+            else -> null // Sin error
+        }
+        val currentImageUri = _addCuadro.value.imageUri
+        _addCuadro.update {
+            it.copy(
+                title = title, description = description, price = price,
+                size = size, material = material, category = category, artist = artist,
+                titleError = titleError, priceError = priceError,
+                canSubmit = titleError == null && priceError == null && currentImageUri != null && !it.isSaving
+            )
+        }
+    }
+    fun onCuadroImageSelected(uri: Uri?) { // Para AddCuadro
+        val titleError = _addCuadro.value.titleError
+        val priceError = _addCuadro.value.priceError
+        _addCuadro.update {
+            it.copy(
+                imageUri = uri,
+                imageError = if (uri == null) "Debe seleccionar una imagen" else null,
+                canSubmit = titleError == null && priceError == null && uri != null && !it.isSaving
+            )
+        }
+    }
+    fun saveCuadro(appContext: Context) {
+        val s = _addCuadro.value
+        if (!s.canSubmit || s.isSaving) return
+        if (s.imageUri == null) {
+            _addCuadro.update { it.copy(imageError = "Debe seleccionar una imagen", isSaving = false) }
+            return
+        }
+        _addCuadro.update { it.copy(isSaving = true, errorMsg = null) }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val priceInt = s.price.toInt()
+                val savedName = ImageStorageHelper.saveImageToInternalStorage(appContext, s.imageUri)
+                val entity = CuadroEntity(
+                    title = s.title.trim(), description = s.description.trim(), price = priceInt,
+                    size = s.size.trim().ifBlank { "" }, material = s.material.trim().ifBlank { "" },
+                    category = s.category.trim().ifBlank { "otros" }, imagePath = savedName,
+                    isCustom = false, artist = s.artist?.trim()?.ifBlank { null }
+                )
+                cuadroRepository.insert(entity)
+                withContext(Dispatchers.Main) {
+                    _addCuadro.update { it.copy(isSaving = false, saveSuccess = true) }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    _addCuadro.update { it.copy(isSaving = false, errorMsg = e.message ?: "Error al guardar") }
+                }
+            }
+        }
+    }
+    fun clearAddCuadroState() { _addCuadro.update { AddCuadroUiState() } }
+
+
+    // --- Lógica Admin (Eliminar, Cambiar Imagen) ---
+    fun deleteProduct(product: ProductEntity) { viewModelScope.launch { productRepository.delete(product) } }
+    fun deleteCuadro(cuadro: CuadroEntity) { viewModelScope.launch { cuadroRepository.delete(cuadro) } }
+    fun updateProductImage(appContext: Context, productId: Long, newImageUri: Uri, onDone: (Boolean, String?) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val product = productRepository.getProductById(productId)
+                    ?: throw NoSuchElementException("Producto no encontrado")
+                val savedPath = ImageStorageHelper.saveImageToInternalStorage(appContext, newImageUri)
+                // Opcional: Borrar imagen antigua
+                // if (!product.imagePath.startsWith("http") && ...) { File(context.filesDir, product.imagePath).delete() }
+                productRepository.update(product.copy(imagePath = savedPath))
+                withContext(Dispatchers.Main) { onDone(true, null) }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { onDone(false, e.message ?: "Error al actualizar imagen") }
+            }
+        }
+    }
+
+
+    // --- Filtros ---
+    fun setProductFilter(category: String) { _productFilter.value = category }
+    fun setCuadroFilter(category: String) { _cuadroFilter.value = category }
+
+    // --- Carrito ---
+    fun addProductToCart(p: ProductEntity) {
+        viewModelScope.launch {
+            cartRepository.addOrIncrement("product", p.id, p.name, p.price, p.imagePath)
+        }
+    }
+    fun addCuadroToCart(c: CuadroEntity) {
+        viewModelScope.launch {
+            cartRepository.addOrIncrement("cuadro", c.id, c.title, c.price, c.imagePath)
+        }
+    }
+    fun updateCartQuantity(item: CartItemEntity, newQty: Int) {
+        viewModelScope.launch { cartRepository.updateQuantity(item, newQty) }
+    }
+    fun removeFromCart(item: CartItemEntity) {
+        viewModelScope.launch { cartRepository.remove(item) }
+    }
+    fun clearCart() { viewModelScope.launch { cartRepository.clear() } }
+
+    // --- Notificación de Compra ---
+    fun showPurchaseNotification() {
+        val context = getApplication<Application>().applicationContext
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        val builder = NotificationCompat.Builder(context, "purchase_notifications") // Usa el ID del canal
+            .setSmallIcon(R.drawable.ic_launcher_foreground) // Asegúrate que este drawable exista
+            .setContentTitle("¡Compra Exitosa!")
+            .setContentText("Tu pedido ha sido registrado.")
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+        with(NotificationManagerCompat.from(context)) {
+            notify(System.currentTimeMillis().toInt(), builder.build()) // Usa un ID único (ej: timestamp)
+        }
+    }
+
+    // --- Preferencias ---
+    suspend fun setDarkMode(enabled: Boolean) { userPreferences.setDarkMode(enabled) }
+    suspend fun setAvatarType(type: String) { userPreferences.setAvatarType(type) }
+
+    // --- Historial de Compras ---
+    fun recordOrder(items: List<CartItemEntity>, total: Int) {
+        val repo = orderRepository ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            val summary = items.joinToString("\n") { "- ${it.name} x${it.quantity} = ${formatPriceInternal(it.price * it.quantity)}" }
+            repo.insert(OrderEntity(dateMillis = System.currentTimeMillis(), itemsText = summary, total = total))
+        }
+    }
+    // Función interna para formatear precio (simple, podría usar NumberFormat)
+    private fun formatPriceInternal(value: Int): String {
+        return try {
+            // Intenta usar NumberFormat para formato localizado con puntos
+            val format = NumberFormat.getNumberInstance(Locale("es", "CL")) // Locale chileno
+            "$ ${format.format(value)}"
+        } catch (e: Exception) {
+            "$ $value" // Fallback simple
+        }
+    }
+
+    // --- Funciones de validación ---
+    // (Asegúrate de tener todas las funciones de `validators.kt` aquí o importadas)
+    private fun validatePrice(price: String): String? {
+        if (price.isBlank()) return "El precio es obligatorio"
+        if (!price.all { it.isDigit() }) return "Solo números"
+        if (price.length > 9) return "Máximo 9 dígitos"
+        try {
+            if (price.length == 9 && price > Int.MAX_VALUE.toString().take(9)) {
+                return "Precio demasiado grande"
+            }
+            price.toInt()
+        } catch (e: NumberFormatException) {
+            return "Precio inválido o demasiado grande"
+        }
+        return null
+    }
 
 }
