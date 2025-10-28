@@ -19,10 +19,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-// --- Constantes para roles y estados ---
+// Constantes de dominio: identificadores para roles y estados de usuario
 private const val ADMIN_ROL_ID = 1
 private const val ACTIVO_ESTADO_ID = 1
-// ------------------------------------
+// (Se utilizan al inicializar usuarios o validar permisos)
 
 @Database(
     entities = [
@@ -32,8 +32,8 @@ private const val ACTIVO_ESTADO_ID = 1
         CartItemEntity::class,
         OrderEntity::class
     ],
-    // --- ¡IMPORTANTE! Incrementa la versión si cambiaste entidades ---
-    version = 4, // O el número siguiente al que tenías
+    // Versión del esquema Room: súbela cuando cambies entidades/tablas
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -58,13 +58,13 @@ abstract class AppDatabase : RoomDatabase() {
                     .addCallback(object : Callback() {
                         override fun onCreate(db: SupportSQLiteDatabase) {
                             super.onCreate(db)
-                            // Llenar con datos iniciales
+                            // Semilla de datos iniciales (productos y cuadros de ejemplo)
                             CoroutineScope(Dispatchers.IO).launch {
                                 val database = getDatabase(context)
                                 val productDao = database.productDao()
                                 val cuadroDao = database.cuadroDao()
 
-                                // Productos de ejemplo (usa solo nombres de drawable)
+                                // Productos de ejemplo. imagePath debe ser el nombre del drawable (sin extensión)
                                 try {
                                     productDao.insert(ProductEntity(
                                         name = "I 09 greca zo",
@@ -126,9 +126,7 @@ abstract class AppDatabase : RoomDatabase() {
                                             size = "50x70 cm",
                                             material = "Canvas",
                                             category = "Paisajes",
-                                            // --- ¡CORREGIDO AQUÍ! ---
-                                            imagePath = "paisaje", // Solo el nombre, sin extensión
-                                            // -------------------------
+                                            imagePath = "paisaje", // Nombre del drawable (sin extensión)
                                             isCustom = false,
                                             artist = "Legacy Studio"
                                         )
@@ -137,7 +135,7 @@ abstract class AppDatabase : RoomDatabase() {
                             }
                         }
                     })
-                    // Permite destruir y recrear la BD si las migraciones fallan
+                    // Desarrollo: recrea la BD si no existe una migración compatible
                     .fallbackToDestructiveMigration()
                     .build()
 

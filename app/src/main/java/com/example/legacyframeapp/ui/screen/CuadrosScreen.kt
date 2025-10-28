@@ -34,45 +34,35 @@ import com.example.legacyframeapp.domain.ImageStorageHelper
 import com.example.legacyframeapp.ui.components.formatWithThousands
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
-// --- Stateful Composable (Conecta con ViewModel) ---
+// Pantalla de Cuadros (con ViewModel): observa lista de cuadros y estado de sesión
 @Composable
 fun CuadrosScreenVm(
     vm: AuthViewModel,
     onAddCuadro: () -> Unit
 ) {
-    // --- USA LA LISTA COMPLETA, SIN FILTRO ---
+    // Lista completa de cuadros (sin filtros por categoría)
     val cuadros by vm.cuadros.collectAsStateWithLifecycle()
-    // -----------------------------------------
-    // val categories by vm.cuadroCategories.collectAsStateWithLifecycle() // Ya no se usa
-    // val filter by vm.cuadroFilter.collectAsStateWithLifecycle() // Ya no se usa
+    // (Se removieron filtros/categorías para simplificar)
     val session by vm.session.collectAsStateWithLifecycle()
 
     CuadrosScreen(
-        cuadros = cuadros, // Pasa la lista completa
-        // categories = categories, // Ya no se pasa
-        // selectedCategory = filter, // Ya no se pasa
-        // onCategorySelect = vm::setCuadroFilter, // Ya no se pasa
+        cuadros = cuadros,
         isAdmin = session.isAdmin,
         onAddCuadro = onAddCuadro,
         onAddToCart = { cuadro -> vm.addCuadroToCart(cuadro) }
     )
 }
 
-// --- Stateless Composable (Solo UI) ---
-@OptIn(ExperimentalMaterial3Api::class) // Quita ExperimentalLayoutApi si no usas FlowRow
+// UI de Cuadros: lista de tarjetas y FAB para añadir (solo admin)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuadrosScreen(
     cuadros: List<CuadroEntity>,
-    // Quita parámetros de categorías y filtro
-    // categories: List<String>,
-    // selectedCategory: String,
-    // onCategorySelect: (String) -> Unit,
     isAdmin: Boolean,
     onAddCuadro: () -> Unit,
     onAddToCart: (CuadroEntity) -> Unit
 ) {
-    // val context = LocalContext.current // No se usa directamente aquí ahora
-    // val green = Color(0xFF2E7D32) // No se usa directamente aquí ahora
+    // (Contexto no requerido en esta función)
 
     Scaffold(
         floatingActionButton = {
@@ -92,11 +82,7 @@ fun CuadrosScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp), // Padding inferior por FAB
             verticalArrangement = Arrangement.spacedBy(16.dp) // Espacio entre tarjetas
         ) {
-            // --- QUITA LOS FILTROS DE CATEGORÍA ---
-            // item {
-            //     FlowRow(...) { ... FilterChip ... }
-            // }
-            // --------------------------------------
+            // Se eliminaron chips de filtros para simplificar la experiencia
 
             // --- Lista de Cuadros ---
             if (cuadros.isEmpty()) {
@@ -110,31 +96,27 @@ fun CuadrosScreen(
                 }
             } else {
                 items(cuadros, key = { it.id }) { cuadro ->
-                    // --- USA EL CuadroCard MODIFICADO ---
                     CuadroCard(
                         cuadro = cuadro,
                         onAddToCart = { onAddToCart(cuadro) }
-                        // Quita onContactWhatsApp
                     )
-                    // ------------------------------------
                 }
             }
         }
     }
 }
 
-// --- Tarjeta para mostrar un Cuadro (MODIFICADA para ser idéntica a ProductCard) ---
+// Tarjeta de Cuadro: muestra imagen, datos y botón para añadir al carrito
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuadroCard(
     cuadro: CuadroEntity,
     onAddToCart: () -> Unit
-    // Quita onContactWhatsApp
 ) {
     val context = LocalContext.current
     val placeholderDrawable = R.drawable.ic_launcher_foreground // O tu placeholder
 
-    // Lógica de carga de imagen (sin cambios)
+    // Resolución de imagen: URL, archivo guardado o recurso drawable
     val imageRequest = remember(cuadro.imagePath) {
         val dataToLoad: Any? = when {
             cuadro.imagePath.isBlank() -> null
@@ -150,7 +132,6 @@ fun CuadroCard(
             .data(dataToLoad).placeholder(placeholderDrawable).error(placeholderDrawable).crossfade(true).build()
     }
 
-    // --- DISEÑO IDÉNTICO A ProductCard ---
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
@@ -219,7 +200,7 @@ fun CuadroCard(
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    // Botón Añadir al Carrito (IconButton como en ProductCard)
+                    // Botón: añadir al carrito
                     IconButton(onClick = onAddToCart, modifier = Modifier.size(36.dp)) { // Mismo tamaño
                         Icon(
                             imageVector = Icons.Default.AddShoppingCart, // Mismo icono
@@ -227,10 +208,8 @@ fun CuadroCard(
                             tint = MaterialTheme.colorScheme.primary // Mismo tinte
                         )
                     }
-                    // QUITA el botón de WhatsApp
                 }
             }
         }
     }
-    // ---------------------------------
 }

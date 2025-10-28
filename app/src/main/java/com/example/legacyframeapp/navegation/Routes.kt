@@ -1,6 +1,6 @@
 package com.example.legacyframeapp.navegation
 
-// Clase sellada para rutas: evita "strings mágicos" y facilita refactors
+// Definición centralizada de rutas de navegación para evitar strings mágicos
 sealed class Route(val path: String) {
     data object Splash    : Route("splash")
     data object Home      : Route("home")
@@ -22,8 +22,4 @@ sealed class Route(val path: String) {
     data object Terms     : Route("terms")
 }
 
-/*
-* “Strings mágicos” se refiere a cuando pones un texto duro y repetido en varias partes del código,
-* Si mañana cambias "home" por "inicio", tendrías que buscar todas las ocurrencias de "home" a mano.
-* Eso es frágil y propenso a errores.
-La idea es: mejor centralizar esos strings en una sola clase (Route), y usarlos desde ahí.*/
+// Nota: usar Route evita errores al renombrar rutas y facilita el mantenimiento

@@ -34,7 +34,7 @@ import java.io.File
 
 
 
-// Data classes para simular los datos de tu web
+// Modelos de UI para la pantalla Home
 data class ProductHome(
     val title: String, 
     val price: Int, 
@@ -81,14 +81,14 @@ fun HomeScreen(
         ServiceHome("⚡", "Servicio Express", "Enmarcación rápida en 24-48 horas.")
     )
 
-    // Usamos LazyColumn para que toda la pantalla sea desplazable verticalmente
+    // Contenedor principal desplazable verticalmente
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             // Usamos el color de fondo claro directamente (similar a --light-bg)
             .background(Color(0xFFFAF8F5))
     ) {
-        // --- 1. Banner Principal con imagen de Legacy Frames ---
+        // Sección 1: Banner principal con imagen de Legacy Frames
         item {
             // Imagen del header con el logo y las fotos
             Image(
@@ -101,9 +101,9 @@ fun HomeScreen(
             )
         }
         
-        // --- 2. Tarjeta de Bienvenida con Botones ---
+        // Sección 2: Tarjeta de bienvenida y navegación a Molduras/Cuadros
         item {
-            // Tarjeta de bienvenida (Surface crea la tarjeta con sombra)
+            // Tarjeta con logo, texto y botones de navegación
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -133,7 +133,7 @@ fun HomeScreen(
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
-                    // Botones debajo del texto
+                    // Botones de acceso rápido a Molduras y Cuadros
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
@@ -169,7 +169,7 @@ fun HomeScreen(
             }
         }
 
-        // --- 3. Productos Más Vendidos ---
+        // Sección 3: Productos más vendidos (los 3 primeros del catálogo)
         item {
             SectionTitle("Nuestros Más Vendidos") // Título reutilizable
             // Fila horizontal que permite scroll si hay muchos productos
@@ -187,7 +187,7 @@ fun HomeScreen(
             }
         }
 
-        // --- 4. Nuestros Servicios ---
+        // Sección 4: Servicios ofrecidos
         item {
             Spacer(modifier = Modifier.height(32.dp)) // Espacio antes de la sección
             SectionTitle("Nuestros Servicios") // Título reutilizable
@@ -207,9 +207,9 @@ fun HomeScreen(
     }
 }
 
-// --- Componentes Reutilizables (para no repetir código) ---
+// Componentes reutilizables
 
-// Composable para Título de Sección (Recrea el estilo de tu CSS)
+// Título de sección con línea decorativa
 @Composable
 fun SectionTitle(title: String, modifier: Modifier = Modifier) {
     Column(
@@ -235,7 +235,7 @@ fun SectionTitle(title: String, modifier: Modifier = Modifier) {
     }
 }
 
-// Composable para Tarjeta de Producto Popular
+// Tarjeta de producto popular (imagen, título, precio y descripción corta)
 @Composable
 fun ProductCardHome(product: ProductHome, onClick: () -> Unit) {
     val context = LocalContext.current
@@ -248,7 +248,7 @@ fun ProductCardHome(product: ProductHome, onClick: () -> Unit) {
         shape = RoundedCornerShape(12.dp) // Bordes redondeados
     ) {
         Column {
-            // Imagen del producto
+            // Imagen del producto: desde recurso o ruta/URL
             when {
                 product.imageResId != null -> {
                     Image(

@@ -33,7 +33,7 @@ import java.io.File
 import androidx.compose.foundation.shape.RoundedCornerShape // Asegúrate que esté importado
 import androidx.compose.ui.text.style.TextOverflow
 
-// --- Stateful Composable (Conecta con ViewModel) ---
+// Pantalla de Carrito (con ViewModel): obtiene items y total, maneja acciones de compra
 @Composable
 fun CartScreenVm(
     vm: AuthViewModel,
@@ -58,7 +58,7 @@ fun CartScreenVm(
     )
 }
 
-// --- Stateless Composable (Solo UI) ---
+// UI del Carrito: barra superior, lista de items y barra inferior con total y botón Comprar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
@@ -99,9 +99,8 @@ fun CartScreen(
                         Column {
                             Text("Total:", style = MaterialTheme.typography.bodyMedium)
                             Text(
-                                // --- CORRECCIÓN AQUÍ (Total) ---
+                                // Total formateado con separador de miles
                                 text = "$ ${formatWithThousands(total.toString())}",
-                                // -------------------------------
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
@@ -128,7 +127,8 @@ fun CartScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(items, key = { it.id }) { item ->
-                    CartItemRow( // Llama a la fila corregida
+                    // Fila de item con controles de cantidad y eliminar
+                    CartItemRow(
                         item = item,
                         onRemoveOne = { onRemoveOne(item) },
                         onAddOne = { onAddOne(item) },
@@ -141,7 +141,7 @@ fun CartScreen(
     }
 }
 
-// --- Fila para mostrar un item del carrito (CON CORRECCIONES .toString()) ---
+// Fila de un item del carrito: imagen, nombre, precio, controles +/- y subtotal
 @Composable
 fun CartItemRow(
     item: CartItemEntity,
@@ -152,7 +152,7 @@ fun CartItemRow(
     val context = LocalContext.current
     val placeholderDrawable = R.drawable.ic_launcher_foreground // O tu placeholder
 
-    // Lógica de carga de imagen (sin cambios)
+    // Resolución de imagen: URL, archivo local o recurso drawable
     val imageRequest = remember(item.imagePath) {
         val dataToLoad: Any? = item.imagePath?.let { path ->
             when {
@@ -171,7 +171,7 @@ fun CartItemRow(
     }
 
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-        // --- Fila Superior ---
+    // Fila superior: miniatura, nombre, precio unitario y botón eliminar
         Row(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -188,9 +188,8 @@ fun CartItemRow(
                 Column {
                     Text(text = item.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(
-                        // --- CORRECCIÓN AQUÍ (Precio Unitario) ---
+                        // Precio unitario formateado
                         text = "$ ${formatWithThousands(item.price.toString())}",
-                        // -----------------------------------------
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray
                     )
@@ -203,7 +202,7 @@ fun CartItemRow(
 
         Spacer(Modifier.height(8.dp))
 
-        // --- Fila Inferior ---
+    // Fila inferior: controles de cantidad y subtotal calculado
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -215,11 +214,9 @@ fun CartItemRow(
                 Text(item.quantity.toString(), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp))
                 OutlinedButton(onClick = onAddOne, modifier = Modifier.size(36.dp), contentPadding = PaddingValues(0.dp)) { Text("+") }
             }
-            // Subtotal del item
+            // Subtotal del item = precio * cantidad
             Text(
-                // --- CORRECCIÓN AQUÍ (Subtotal) ---
                 text = "Subtotal: $ ${formatWithThousands((item.price * item.quantity).toString())}",
-                // ----------------------------------
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold
             )

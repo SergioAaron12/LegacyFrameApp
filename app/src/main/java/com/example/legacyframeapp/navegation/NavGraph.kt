@@ -1,64 +1,61 @@
 package com.example.legacyframeapp.navegation
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import kotlinx.coroutines.launch
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.DrawerValue
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.currentBackStackEntryAsState
-import com.example.legacyframeapp.ui.components.AppTopBar
 import com.example.legacyframeapp.ui.components.AppBottomBar
 import com.example.legacyframeapp.ui.components.AppDrawer
+import com.example.legacyframeapp.ui.components.AppTopBar
 import com.example.legacyframeapp.ui.components.loggedInDrawerItems
 import com.example.legacyframeapp.ui.components.loggedOutDrawerItems
-import com.example.legacyframeapp.ui.screen.HomeScreen
-import com.example.legacyframeapp.ui.screen.LoginScreenVm
-import com.example.legacyframeapp.ui.screen.RegisterScreenVm
-import com.example.legacyframeapp.ui.screen.MoldurasScreenVm
-import com.example.legacyframeapp.ui.screen.CuadrosScreenVm
-import com.example.legacyframeapp.ui.screen.CartScreenVm
-import com.example.legacyframeapp.ui.screen.ContactScreen
+import com.example.legacyframeapp.ui.screen.AddCuadroScreenVm
 import com.example.legacyframeapp.ui.screen.AddProductScreenVm
 import com.example.legacyframeapp.ui.screen.AdminScreenVm
+import com.example.legacyframeapp.ui.screen.CartScreenVm
 import com.example.legacyframeapp.ui.screen.ChangeProductImageScreenVm
-import com.example.legacyframeapp.ui.screen.DeleteProductScreenVm
+import com.example.legacyframeapp.ui.screen.ContactScreen
+import com.example.legacyframeapp.ui.screen.CuadrosScreenVm
 import com.example.legacyframeapp.ui.screen.DeleteCuadroScreenVm
+import com.example.legacyframeapp.ui.screen.DeleteProductScreenVm
+import com.example.legacyframeapp.ui.screen.HomeScreen
+import com.example.legacyframeapp.ui.screen.LoginScreenVm
+import com.example.legacyframeapp.ui.screen.MoldurasScreenVm
 import com.example.legacyframeapp.ui.screen.ProfileScreenVm
-import com.example.legacyframeapp.ui.screen.SettingsScreenVm
 import com.example.legacyframeapp.ui.screen.PurchasesScreenVm
+import com.example.legacyframeapp.ui.screen.RegisterScreenVm
+import com.example.legacyframeapp.ui.screen.SettingsScreenVm
 import com.example.legacyframeapp.ui.screen.TermsScreen
-import com.example.legacyframeapp.ui.screen.AddCuadroScreenVm
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
+import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
     authViewModel: AuthViewModel
 ) {
-    // --- OBTENER ESTADOS DEL VIEWMODEL ---
+    // Estados compartidos del ViewModel: sesión, carrito y productos (para Home)
     val session by authViewModel.session.collectAsStateWithLifecycle()
     val cartItemCount by authViewModel.cartItemCount.collectAsStateWithLifecycle()
-    val products by authViewModel.products.collectAsStateWithLifecycle() // <-- AÑADIDO
-    // ------------------------------------
+    val products by authViewModel.products.collectAsStateWithLifecycle()
 
+    // Estado y alcance del Drawer lateral
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // --- Acciones de navegación (sin cambios) ---
+    // Acciones de navegación reutilizables
     val goHome: () -> Unit = {
-        navController.navigate(Route.Home.path) {
-            popUpTo(navController.graph.startDestinationId) { saveState = true }
-            launchSingleTop = true
-        }
+        navController.navigate(Route.Home.path) { launchSingleTop = true }
     }
     val goLogin: () -> Unit = {
         navController.navigate(Route.Login.path) { launchSingleTop = true }
@@ -69,7 +66,6 @@ fun AppNavGraph(
     val goProfile: () -> Unit = {
         navController.navigate(Route.Profile.path) { launchSingleTop = true }
     }
-    // --- NUEVAS ACCIONES ---
     val goMolduras: () -> Unit = {
         navController.navigate(Route.Molduras.path) { launchSingleTop = true }
     }
@@ -94,12 +90,6 @@ fun AppNavGraph(
     val goDeleteCuadro: () -> Unit = {
         navController.navigate(Route.DeleteCuadro.path) { launchSingleTop = true }
     }
-    // --- ACCIÓN PARA VOLVER ATRÁS ---
-    val goBack: () -> Unit = {
-        navController.popBackStack()
-    }
-
-    // --- ACCIÓN PARA IR A AÑADIR PRODUCTO ---
     val goAddProduct: () -> Unit = {
         navController.navigate(Route.AddProduct.path) { launchSingleTop = true }
     }
@@ -109,6 +99,8 @@ fun AppNavGraph(
     val goSettings: () -> Unit = {
         navController.navigate(Route.Settings.path) { launchSingleTop = true }
     }
+    val goBack: () -> Unit = { navController.popBackStack() }
+
     val doLogout: () -> Unit = {
         authViewModel.logout()
         goLogin()
@@ -116,12 +108,10 @@ fun AppNavGraph(
 
     val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
     val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
-    // ------------------------------------------
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            // --- Lógica del menú lateral (sin cambios) ---
             if (session.isLoggedIn) {
                 AppDrawer(
                     currentRoute = null,
@@ -164,7 +154,6 @@ fun AppNavGraph(
             bottomBar = {
                 val backStackEntry by navController.currentBackStackEntryAsState()
                 val route = backStackEntry?.destination?.route
-                // Ocultar en pantallas de flujo o detalle
                 val hideOn = setOf(
                     Route.Splash.path,
                     Route.Cart.path,
@@ -173,7 +162,9 @@ fun AppNavGraph(
                     Route.Admin.path,
                     Route.AddProduct.path,
                     Route.ChangeProductImage.path,
-                    Route.DeleteProduct.path
+                    Route.DeleteProduct.path,
+                    Route.DeleteCuadro.path,
+                    Route.AddCuadro.path
                 )
                 if (route !in hideOn) {
                     AppBottomBar(
@@ -193,9 +184,7 @@ fun AppNavGraph(
                 composable(Route.Splash.path) {
                     com.example.legacyframeapp.ui.screen.SplashScreen(onFinished = goHome)
                 }
-                // --- Tus Destinos de Navegación ---
                 composable(Route.Home.path) {
-                    // --- LLAMADA A HomeScreen (CORREGIDA) ---
                     HomeScreen(
                         onGoLogin = goLogin,
                         onGoRegister = goRegister,
@@ -203,7 +192,6 @@ fun AppNavGraph(
                         onGoCuadros = goCuadros,
                         products = products
                     )
-                    // ------------------------------------
                 }
                 composable(Route.Profile.path) {
                     ProfileScreenVm(
@@ -275,7 +263,6 @@ fun AppNavGraph(
                         onNavigateBack = goBack
                     )
                 }
-
                 composable(Route.Admin.path) {
                     AdminScreenVm(
                         vm = authViewModel,
@@ -287,21 +274,18 @@ fun AppNavGraph(
                         onBack = goBack
                     )
                 }
-
                 composable(Route.ChangeProductImage.path) {
                     ChangeProductImageScreenVm(
                         vm = authViewModel,
                         onNavigateBack = goBack
                     )
                 }
-
                 composable(Route.DeleteProduct.path) {
                     DeleteProductScreenVm(
                         vm = authViewModel,
                         onNavigateBack = goBack
                     )
                 }
-                
                 composable(Route.DeleteCuadro.path) {
                     DeleteCuadroScreenVm(
                         vm = authViewModel,
