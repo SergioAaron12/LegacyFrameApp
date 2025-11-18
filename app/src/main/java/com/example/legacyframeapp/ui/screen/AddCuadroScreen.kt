@@ -1,7 +1,6 @@
 package com.example.legacyframeapp.ui.screen
 
-import android.Manifest // Necesario para permisos
-import android.content.Context
+import android.Manifest
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -12,12 +11,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack // Icono de flecha actualizado
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment // Necesario si usas Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -27,8 +25,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.example.legacyframeapp.ui.components.AppButton // Asume que tienes este componente
-import com.example.legacyframeapp.ui.components.ThousandSeparatorTransformation // Asume que tienes esto
+import com.example.legacyframeapp.ui.components.AppButton
+import com.example.legacyframeapp.ui.components.ThousandSeparatorTransformation
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
 // --- Stateful Composable (Conecta con ViewModel) ---
@@ -177,10 +175,8 @@ fun AddCuadroScreen(
                 modifier = Modifier.fillMaxWidth().height(100.dp)
             )
 
-            // --- PRECIO CON LÍMITE DE 6 DÍGITOS ---
             OutlinedTextField(
                 value = price,
-                // OnValueChange modificado para limitar a 6 dígitos
                 onValueChange = { newValue ->
                     if (newValue.all { it.isDigit() } && newValue.length <= 6) {
                         onPriceChange(newValue)

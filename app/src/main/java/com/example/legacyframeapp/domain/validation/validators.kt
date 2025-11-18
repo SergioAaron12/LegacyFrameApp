@@ -35,7 +35,7 @@ fun validatePhoneDigitsOnly(phone: String): String? {
     return null
 }
 
-// --- NUEVO: Valida formato básico del RUT (números, longitud) ---
+// --- Valida formato básico del RUT (números, longitud) ---
 fun validateRut(rut: String): String? {
     if (rut.isBlank()) return "El RUT es obligatorio"
     if (!rut.all { it.isDigit() }) return "Solo números (sin puntos ni guión)"

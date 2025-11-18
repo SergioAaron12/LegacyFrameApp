@@ -10,16 +10,19 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+<<<<<<< HEAD
 import androidx.compose.ui.graphics.Color // Importa Color directamente
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+=======
+import androidx.compose.ui.graphics.Color
+>>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-// --- Paleta de Colores CLARA usando tus variables de Color.kt ---
-// Esta sección toma los colores que definiste en Color.kt (PrimaryBrown, White, etc.)
-// y le dice a Material Design cómo usarlos en los componentes.
+
 private val LightColorScheme = lightColorScheme(
+<<<<<<< HEAD
     primary = PrimaryBrown,
     onPrimary = White,
     primaryContainer = PrimaryContainerBrown,
@@ -42,6 +45,20 @@ private val LightColorScheme = lightColorScheme(
     onError = White,
     inverseSurface = DarkBrown,
     inverseOnSurface = White
+=======
+    primary = PrimaryBrown,         // Color principal (Usado por TopAppBar, botones llenos, etc.)
+    secondary = SecondaryBrown,     // Color secundario (Menos usado por defecto)
+    tertiary = AccentBrown,         // Color de acento (FloatingActionButton, badges, etc.)
+    background = LightBackground,   // Fondo general de las pantallas
+    surface = White,                // Fondo de elementos elevados como Cards, Menús
+    onPrimary = White,              // Color del texto/iconos SOBRE el color primario (ej: texto en TopBar café)
+    onSecondary = White,            // Color del texto/iconos SOBRE el color secundario
+    onTertiary = TextDark,          // Color del texto/iconos SOBRE el color de acento
+    onBackground = TextDark,        // Color del texto SOBRE el fondo general
+    onSurface = TextDark,           // Color del texto SOBRE superficies (ej: texto en Cards blancas)
+    error = ErrorRed,               // Color para mensajes de error
+    onError = White                 // Color del texto SOBRE el color de error
+>>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -70,13 +87,16 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 // --- Función Composable del Tema ---
-// Esta es la función que envuelve tu app en MainActivity.kt
+// Esta es la función que envuelve en MainActivity.kt
 @Composable
 fun UINavegacionTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+<<<<<<< HEAD
     dynamicColor: Boolean = true,
     accentHex: String? = null,
     fontScale: Float = 1f,
+=======
+>>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -96,7 +116,7 @@ fun UINavegacionTheme(
     }
     val view = LocalView.current
     if (!view.isInEditMode) {
-        // Efecto secundario para cambiar el color de la barra de estado del sistema (la de arriba del todo)
+        // Efecto secundario para cambiar el color de la barra de estado del sistema
         SideEffect {
             val window = (view.context as Activity).window
             // Colores de system bars coherentes con el fondo

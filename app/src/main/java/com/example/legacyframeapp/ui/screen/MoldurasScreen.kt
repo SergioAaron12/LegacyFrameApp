@@ -1,13 +1,10 @@
 package com.example.legacyframeapp.ui.screen
 
-// --- Animación ---
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-
-// --- Layout (Diseño) ---
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+<<<<<<< HEAD
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -30,13 +28,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
 // --- Material Icons ---
+=======
+>>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
 import androidx.compose.material.icons.Icons
-import androidx.compose.material3.IconButton
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.AddShoppingCart
-
-// --- Material 3 Components ---
 import androidx.compose.material3.Card
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -48,8 +45,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AssistChipDefaults
-
-// --- Runtime y Composable ---
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -61,6 +56,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+<<<<<<< HEAD
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.window.Dialog
@@ -68,13 +64,10 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.graphicsLayer
 
 // --- ViewModel y Lifecycle ---
+=======
+>>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-
-// --- Librerías (Coil) ---
 import coil.compose.AsyncImage
-import androidx.compose.ui.graphics.toArgb
-
-// --- Lógica del Dominio y Datos ---
 import com.example.legacyframeapp.data.local.product.ProductEntity
 import com.example.legacyframeapp.domain.ImageStorageHelper
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
@@ -111,7 +104,7 @@ fun MoldurasScreen(
 ) {
     var fullscreenProduct by remember { mutableStateOf<ProductEntity?>(null) }
     Scaffold(
-        // --- Animación #2: Botón Flotante de Admin ---
+        // --- Botón Flotante de Admin ---
         floatingActionButton = {
             AnimatedVisibility(
                 visible = isAdmin,
@@ -297,7 +290,6 @@ private fun ProductCard(
 @Composable
 private fun categoryColors(category: String): Pair<Color, Color> {
     // Paleta basada en Bootstrap usada por el sitio
-    // primary #8B5C2A, info #0dcaf0, success #198754, secondary #6c757d, warning #ffc107
     return when (category.lowercase()) {
         "grecas" -> Color(0xFF8B5C2A) to Color.White // primary
         "rústicas", "rusticas" -> Color(0xFF0DCAF0) to Color(0xFF07323A) // info

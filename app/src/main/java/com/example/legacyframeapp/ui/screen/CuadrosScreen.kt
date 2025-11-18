@@ -40,9 +40,8 @@ fun CuadrosScreenVm(
     vm: AuthViewModel,
     onAddCuadro: () -> Unit
 ) {
-    // Lista completa de cuadros (sin filtros por categoría)
+    // Lista completa de cuadros
     val cuadros by vm.cuadros.collectAsStateWithLifecycle()
-    // (Se removieron filtros/categorías para simplificar)
     val session by vm.session.collectAsStateWithLifecycle()
 
     CuadrosScreen(
@@ -62,7 +61,6 @@ fun CuadrosScreen(
     onAddCuadro: () -> Unit,
     onAddToCart: (CuadroEntity) -> Unit
 ) {
-    // (Contexto no requerido en esta función)
 
     Scaffold(
         floatingActionButton = {
@@ -164,7 +162,7 @@ fun CuadroCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                // Muestra tamaño y material (si existen)
+                // Muestra tamaño y material
                 Text(
                     text = listOfNotNull(
                         cuadro.size.takeIf { it.isNotBlank() },
@@ -175,6 +173,7 @@ fun CuadroCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+<<<<<<< HEAD
                 // Mostrar artista si existe
                 if (!cuadro.artist.isNullOrBlank()) {
                     Text(
@@ -186,6 +185,8 @@ fun CuadroCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+=======
+>>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = cuadro.description,

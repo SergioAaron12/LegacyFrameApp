@@ -1,6 +1,6 @@
 package com.example.legacyframeapp.ui.screen
 
-import androidx.compose.foundation.background // <-- MODIFICADO
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -18,7 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.legacyframeapp.ui.components.AppButton
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
-// --- Stateful Composable (SIN CAMBIOS) ---
+// --- Stateful Composable ---
 @Composable
 fun RegisterScreenVm(
     vm: AuthViewModel,
@@ -65,7 +65,7 @@ fun RegisterScreenVm(
     )
 }
 
-// --- Stateless/Presentational Composable (MODIFICADO) ---
+// --- Stateless/Presentational Composable ---
 @Composable
 private fun RegisterScreen(
     nombre: String,
@@ -106,19 +106,16 @@ private fun RegisterScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // =====> CAMBIO 1: Fondo de color café claro (de tu tema) <=====
+            // =====> CAMBIO 1: Fondo de color café claro
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp), // Padding para que la tarjeta no toque los bordes
         contentAlignment = Alignment.Center
     ) {
-        // 1. Imagen de Fondo
-        // --- SE ELIMINÓ EL COMPOSABLE Image(...) ---
 
-        // 2. Tarjeta de Formulario
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.9f),
-            // =====> CAMBIO 2: Color blanco opaco (de tu tema) <=====
+            // =====> CAMBIO 2: Color blanco opaco
             color = MaterialTheme.colorScheme.surface,
             shape = MaterialTheme.shapes.medium,
             shadowElevation = 8.dp
@@ -132,10 +129,6 @@ private fun RegisterScreen(
             ) {
                 Text("Crear Cuenta", style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(16.dp))
-
-                // ... (Todos tus OutlinedTextField de Nombre, Apellido, RUT, etc., van aquí) ...
-                // (No los pego todos para no hacer la respuesta gigante,
-                // pero van exactamente como los tenías, dentro de esta Column)
 
                 // --- CAMPO NOMBRE ---
                 OutlinedTextField(

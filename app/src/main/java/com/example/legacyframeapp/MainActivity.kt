@@ -1,10 +1,10 @@
 package com.example.legacyframeapp
 
-import android.app.Application // <-- 1. AÑADIR IMPORT
-import android.app.NotificationChannel // <-- Para Notificaciones
-import android.app.NotificationManager // <-- Para Notificaciones
-import android.content.Context // <-- Para Notificaciones
-import android.os.Build // <-- Para Notificaciones
+import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -29,14 +29,14 @@ import com.example.legacyframeapp.data.repository.CuadroRepository
 import com.example.legacyframeapp.data.repository.CartRepository
 import com.example.legacyframeapp.data.local.storage.UserPreferences
 import com.example.legacyframeapp.data.repository.OrderRepository
-import com.example.legacyframeapp.data.local.order.OrderDao
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // --- 2. AÑADIR ESTA LÍNEA (para el canal de notificación) ---
+        // --- para el canal de notificación ---
         createNotificationChannel(this)
 
         setContent {
@@ -70,10 +70,10 @@ fun AppRoot() {
     val orderDao = try { db.orderDao() } catch (e: Exception) { null }
     val orderRepository = orderDao?.let { OrderRepository(it) }
 
-    // Crea el ViewModel usando la Factory (AHORA PASAMOS AMBOS REPOS)
+    // Crea el ViewModel usando la Factory
     val authViewModel: AuthViewModel = viewModel(
         factory = AuthViewModelFactory(
-            application = application, // <-- PASAR APPLICATION PRIMERO
+            application = application,
             userRepository = userRepository,
             productRepository = productRepository,
             cuadroRepository = cuadroRepository,
@@ -96,7 +96,7 @@ fun AppRoot() {
     }
     UINavegacionTheme(darkTheme = resolvedDark, accentHex = accentHex, fontScale = fontScale) {
         Surface(color = MaterialTheme.colorScheme.background) {
-            // Prefetch de imágenes (lógica de tu compañero)
+            // Prefetch de imágenes
             LaunchedEffect(Unit) {
                 authViewModel.prefetchProductImages(context.applicationContext)
             }
@@ -108,7 +108,7 @@ fun AppRoot() {
     }
 }
 
-// --- 5. AÑADIR ESTA FUNCIÓN AL FINAL DEL ARCHIVO ---
+
 private fun createNotificationChannel(context: Context) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val channelId = "purchase_notifications"

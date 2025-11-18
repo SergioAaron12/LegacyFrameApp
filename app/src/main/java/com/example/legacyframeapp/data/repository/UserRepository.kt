@@ -3,7 +3,7 @@ package com.example.legacyframeapp.data.repository
 import com.example.legacyframeapp.data.local.user.UserDao
 import com.example.legacyframeapp.data.local.user.UserEntity
 
-// Constantes para valores por defecto (asegúrate que coincidan con tu BD Oracle)
+// Constantes para valores por defecto
 private const val ADMIN_ROL_ID = 1 // Rol Admin
 private const val CLIENTE_ROL_ID = 2
 private const val ACTIVO_ESTADO_ID = 1
@@ -12,7 +12,7 @@ class UserRepository(
     private val userDao: UserDao
 ) {
 
-    // --- FUNCIÓN LOGIN (ACTUALIZADA POR TU COMPAÑERO) ---
+    // --- FUNCIÓN LOGIN---
     suspend fun login(email: String, password: String): Result<UserEntity> {
         val normalizedEmail = email.trim().lowercase()
 
@@ -56,7 +56,7 @@ class UserRepository(
         }
     }
 
-    // --- FUNCIÓN REGISTER (ACTUALIZADA POR TU COMPAÑERO) ---
+    // --- FUNCIÓN REGISTER ---
     suspend fun register(
         nombre: String,
         apellido: String?,
@@ -108,14 +108,6 @@ class UserRepository(
             Result.failure(e)
         }
     }
-
-    // --- FUNCIÓN AÑADIDA ---
-    /**
-     * Asegura que el usuario administrador exista en la base de datos.
-     * Si no existe, lo crea con las credenciales predeterminadas.
-     * Esta función es llamada desde el init del AuthViewModel.
-     * Devuelve la entidad del usuario administrador (existente o recién creada).
-     */
     suspend fun ensureAdminUserExists(): UserEntity {
         val adminEmail = "admin@legacyframes.cl"
         var admin = userDao.getByEmail(adminEmail)
@@ -146,7 +138,6 @@ class UserRepository(
                 }
             }
         }
-        // Asegurarse de que el usuario admin tenga rol de admin (podría haber sido cambiado)
         if (admin.rolId != ADMIN_ROL_ID) {
             // (Opcional: podrías forzar la actualización del rol aquí si es necesario)
             println("Advertencia: El usuario admin@legacyframes.cl no tiene rol de administrador en la BD.")
@@ -154,6 +145,7 @@ class UserRepository(
         }
         return admin
     }
+<<<<<<< HEAD
     // ----------------------------
 
     // --- Otras funciones podrían ir aquí (ej: getUserById, updateProfile, etc.) ---
@@ -195,3 +187,6 @@ class UserRepository(
     }
 
 } // Fin de la clase UserRepository
+=======
+}
+>>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16

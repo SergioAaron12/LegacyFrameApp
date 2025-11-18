@@ -23,19 +23,17 @@ import com.example.legacyframeapp.data.repository.UserRepository
 import com.example.legacyframeapp.domain.ImageStorageHelper
 import com.example.legacyframeapp.domain.validation.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.* // Asegúrate de tener flow.* para combine
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 import java.net.URL
-// import kotlinx.coroutines.flow.first // Podría ser útil
 import com.example.legacyframeapp.data.local.storage.UserPreferences
 import com.example.legacyframeapp.data.local.order.OrderEntity
 import com.example.legacyframeapp.data.repository.OrderRepository
-import java.text.NumberFormat // Para formatear precios si es necesario
-import java.util.Locale // Para formatear precios si es necesario
+import java.text.NumberFormat
+import java.util.Locale
 
 
 // --- ESTADOS DE UI ---
@@ -113,7 +111,7 @@ data class AddCuadroUiState(
     val material: String = "",
     val category: String = "",
     val imageUri: Uri? = null,
-    val artist: String? = null, // Añadido Artist
+    val artist: String? = null,
     val titleError: String? = null,
     val priceError: String? = null,
     val imageError: String? = null,
@@ -130,7 +128,7 @@ class AuthViewModel(
     private val cuadroRepository: CuadroRepository,
     private val cartRepository: CartRepository,
     private val userPreferences: UserPreferences,
-    private val orderRepository: OrderRepository? = null // Hacerlo nullable por si acaso
+    private val orderRepository: OrderRepository? = null
 ) : AndroidViewModel(application) {
 
     // --- (Login, Register, Session) ---
@@ -244,13 +242,7 @@ class AuthViewModel(
             // Cargar categorías
             _productCategories.value = productRepository.getAllCategories()
             _cuadroCategories.value = cuadroRepository.getAllCategories()
-
-            // Asegurar usuario admin
             userRepository.ensureAdminUserExists()
-
-            // Aplicar ajustes de catálogo (si es necesario)
-            // applyKnownCatalogAdjustments()
-            // replaceCatalogWithSelected() // O usar este si quieres reemplazar
         }
         // Restaurar estado de sesión basado en preferencias
         viewModelScope.launch {
@@ -635,8 +627,8 @@ class AuthViewModel(
         val priceError = when {
             price.isBlank() -> "El precio es obligatorio"
             !price.all { it.isDigit() } -> "Solo números"
-            price.length > 6 -> "Máximo 6 dígitos" // <-- Límite específico
-            price.toIntOrNull() == null -> "Precio inválido" // Verifica si es un número válido
+            price.length > 6 -> "Máximo 6 dígitos"
+            price.toIntOrNull() == null -> "Precio inválido"
             else -> null // Sin error
         }
         val currentImageUri = _addCuadro.value.imageUri
@@ -701,8 +693,6 @@ class AuthViewModel(
                 val product = productRepository.getProductById(productId)
                     ?: throw NoSuchElementException("Producto no encontrado")
                 val savedPath = ImageStorageHelper.saveImageToInternalStorage(appContext, newImageUri)
-                // Opcional: Borrar imagen antigua
-                // if (!product.imagePath.startsWith("http") && ...) { File(context.filesDir, product.imagePath).delete() }
                 productRepository.update(product.copy(imagePath = savedPath))
                 withContext(Dispatchers.Main) { onDone(true, null) }
             } catch (e: Exception) {
@@ -740,7 +730,7 @@ class AuthViewModel(
         val context = getApplication<Application>().applicationContext
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val builder = NotificationCompat.Builder(context, "purchase_notifications") // Usa el ID del canal
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // Asegúrate que este drawable exista
+            .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("¡Compra Exitosa!")
             .setContentText("Tu pedido ha sido registrado.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -769,11 +759,11 @@ class AuthViewModel(
             repo.insert(OrderEntity(dateMillis = System.currentTimeMillis(), itemsText = summary, total = total))
         }
     }
-    // Función interna para formatear precio (simple, podría usar NumberFormat)
+    // Función interna para formatear precio
     private fun formatPriceInternal(value: Int): String {
         return try {
             // Intenta usar NumberFormat para formato localizado con puntos
-            val format = NumberFormat.getNumberInstance(Locale("es", "CL")) // Locale chileno
+            val format = NumberFormat.getNumberInstance(Locale("es", "CL"))
             "$ ${format.format(value)}"
         } catch (e: Exception) {
             "$ $value" // Fallback simple
@@ -781,7 +771,6 @@ class AuthViewModel(
     }
 
     // --- Funciones de validación ---
-    // (Asegúrate de tener todas las funciones de `validators.kt` aquí o importadas)
     private fun validatePrice(price: String): String? {
         if (price.isBlank()) return "El precio es obligatorio"
         if (!price.all { it.isDigit() }) return "Solo números"

@@ -1,7 +1,6 @@
 package com.example.legacyframeapp.ui.screen
 
-// Importaciones (Image, ContentScale, painterResource ya no son necesarias aquí)
-import androidx.compose.foundation.background // <-- MODIFICADO: Importa background
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -52,7 +51,7 @@ fun LoginScreenVm(
     )
 }
 
-// --- Stateless/Presentational Composable (MODIFICADO) ---
+// --- Stateless/Presentational Composable ---
 @Composable
 private fun LoginScreen(
     email: String,
@@ -71,28 +70,27 @@ private fun LoginScreen(
     var showPass by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
-    // --- ESTRUCTURA MODIFICADA ---
+    // --- ESTRUCTURA ---
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // =====> CAMBIO 1: Fondo de color café claro (de tu tema) <=====
+            // =====> CAMBIO 1: Fondo de color café claro <=====
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp), // Padding para que la tarjeta no toque los bordes
         contentAlignment = Alignment.Center
     ) {
-        // 1. Imagen de Fondo
-        // --- SE ELIMINÓ EL COMPOSABLE Image(...) ---
 
-        // 2. Tarjeta de Formulario
+
+        // Tarjeta de Formulario
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.9f), // Ocupa el 90% del ancho
-            // =====> CAMBIO 2: Color blanco opaco (de tu tema) <=====
+            // =====> CAMBIO 2: Color blanco opaco
             color = MaterialTheme.colorScheme.surface,
             shape = MaterialTheme.shapes.medium,
             shadowElevation = 8.dp
         ) {
-            // 3. Contenido del Formulario (la columna que ya tenías)
+            // Contenido del Formulario
             Column(
                 modifier = Modifier
                     .padding(24.dp)
