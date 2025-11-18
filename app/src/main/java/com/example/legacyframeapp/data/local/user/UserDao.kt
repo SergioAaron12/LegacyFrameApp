@@ -17,6 +17,10 @@ interface UserDao {
     @Query("SELECT * FROM users WHERE email = :email LIMIT 1")
     suspend fun getByEmail(email: String): UserEntity?
 
+    // Devuelve un usuario por id
+    @Query("SELECT * FROM users WHERE id = :id LIMIT 1")
+    suspend fun getById(id: Long): UserEntity?
+
     // Cuenta total de usuarios (para saber si hay datos y/o para seeds).
     @Query("SELECT COUNT(*) FROM users")
     suspend fun count(): Int
@@ -24,4 +28,16 @@ interface UserDao {
     // Lista completa (útil para debug/administración).
     @Query("SELECT * FROM users ORDER BY id ASC")
     suspend fun getAll(): List<UserEntity>
+
+    // Actualiza nombre y apellido por id. Retorna filas afectadas
+    @Query("UPDATE users SET nombre = :nombre, apellido = :apellido WHERE id = :id")
+    suspend fun updateName(id: Long, nombre: String, apellido: String?): Int
+
+    // Actualiza password por email. Retorna filas afectadas
+    @Query("UPDATE users SET password = :password WHERE email = :email")
+    suspend fun updatePasswordByEmail(email: String, password: String): Int
+
+    // Actualiza password por id. Retorna filas afectadas
+    @Query("UPDATE users SET password = :password WHERE id = :id")
+    suspend fun updatePasswordById(id: Long, password: String): Int
 }

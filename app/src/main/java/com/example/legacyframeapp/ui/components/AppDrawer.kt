@@ -58,11 +58,11 @@ fun loggedOutDrawerItems(
     onMolduras: () -> Unit,
     onCart: () -> Unit
 ): List<DrawerItem> = listOf(
-    DrawerItem("Home", Icons.Filled.Home, onHome),
+    DrawerItem("Inicio", Icons.Filled.Home, onHome),
     DrawerItem("Molduras", Icons.AutoMirrored.Filled.ListAlt, onMolduras),
     DrawerItem("Cuadros", Icons.Filled.Photo, onCuadros),
     DrawerItem("Carrito", Icons.Filled.ShoppingCart, onCart),
-    DrawerItem("Login", Icons.Filled.AccountCircle, onLogin),
+    DrawerItem("Iniciar sesión", Icons.Filled.AccountCircle, onLogin),
     DrawerItem("Registro", Icons.Filled.Person, onRegister)
 )
 
@@ -76,7 +76,7 @@ fun loggedInDrawerItems(
     // (Aquí podrías añadir "onProfile" en el futuro)
     onLogout: () -> Unit   // <-- Nueva acción
 ): List<DrawerItem> = listOf(
-    DrawerItem("Home", Icons.Filled.Home, onHome),
+    DrawerItem("Inicio", Icons.Filled.Home, onHome),
     DrawerItem("Molduras", Icons.AutoMirrored.Filled.ListAlt, onMolduras), // <-- NUEVO ÍTEM
     DrawerItem("Cuadros", Icons.Filled.Photo, onCuadros), // <-- NUEVO ÍTEM
     DrawerItem("Carrito", Icons.Filled.ShoppingCart, onCart), // <-- NUEVO ÍTEM

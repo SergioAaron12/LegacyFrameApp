@@ -203,10 +203,11 @@ private fun RegisterScreen(
                 Spacer(Modifier.height(8.dp))
 
                 // --- CAMPO EMAIL ---
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = onEmailChange,
-                    label = { Text("Correo Electrónico") },
+                    // --- CORREO ---
+                    OutlinedTextField(
+                        value = email,
+                        onValueChange = onEmailChange,
+                        label = { Text("Correo") },
                     isError = emailError != null,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),

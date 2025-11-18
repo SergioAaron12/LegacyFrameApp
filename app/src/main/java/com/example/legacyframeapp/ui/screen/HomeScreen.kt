@@ -44,6 +44,7 @@ data class ProductHome(
 )
 data class ServiceHome(val icon: String, val title: String, val description: String)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     // Funciones de navegación pasadas desde NavGraph
@@ -81,129 +82,153 @@ fun HomeScreen(
         ServiceHome("⚡", "Servicio Express", "Enmarcación rápida en 24-48 horas.")
     )
 
-    // Contenedor principal desplazable verticalmente
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            // Usamos el color de fondo claro directamente (similar a --light-bg)
-            .background(Color(0xFFFAF8F5))
-    ) {
-        // Sección 1: Banner principal con imagen de Legacy Frames
-        item {
-            // Imagen del header con el logo y las fotos
-            Image(
-                painter = painterResource(id = R.drawable.home_header),
-                contentDescription = "Legacy Frames Header",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(250.dp),
-                contentScale = ContentScale.Crop
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                modifier = Modifier.height(32.dp)
             )
         }
-        
-        // Sección 2: Tarjeta de bienvenida y navegación a Molduras/Cuadros
-        item {
-            // Tarjeta con logo, texto y botones de navegación
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 16.dp),
-                shape = RoundedCornerShape(16.dp), // Bordes redondeados
-                shadowElevation = 8.dp, // Sombra
-                color = Color.White // Fondo blanco de la tarjeta
-            ) {
-                // Contenido de la tarjeta
-                Column(
+    ) { inner ->
+        // Contenido principal scrollable
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(inner)
+        ) {
+            // Sección 1: Banner principal
+            item {
+                // Imagen del header con el logo y las fotos
+                Image(
+                    painter = painterResource(id = R.drawable.home_header),
+                    contentDescription = "Header",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 24.dp, horizontal = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .height(250.dp),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        
+            // Sección 2: Tarjeta de bienvenida y navegación a Molduras/Cuadros
+            item {
+                // Tarjeta con logo, texto y botones de navegación
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    shape = RoundedCornerShape(16.dp), // Bordes redondeados
+                    shadowElevation = 8.dp, // Sombra
+                    color = MaterialTheme.colorScheme.surface // Fondo crema del tema
                 ) {
-                    // Logo de marca
-                    com.example.legacyframeapp.ui.components.BrandLogoLarge(
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "Tradición y calidad en enmarcación desde 1998",
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        color = Color(0xFF6c757d)
-                    )
-                    
-                    Spacer(modifier = Modifier.height(16.dp))
-                    
-                    // Botones de acceso rápido a Molduras y Cuadros
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                    // Contenido de la tarjeta
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp, horizontal = 16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        AppButton(
-                            onClick = onGoMolduras,
-                            modifier = Modifier.weight(1f).height(48.dp)
+                        // Logo de marca
+                        com.example.legacyframeapp.ui.components.BrandLogoLarge(
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            "Tradición y calidad en enmarcación desde 1998",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Botones de acceso rápido a Molduras y Cuadros
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                            AppButton(
+                                onClick = onGoMolduras,
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                colorsOverride = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF2E7D32),
+                                    contentColor = Color.White,
+                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             ) {
-                                Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Molduras")
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Molduras")
+                                }
                             }
-                        }
-                        AppButton(
-                            onClick = onGoCuadros,
-                            modifier = Modifier.weight(1f).height(48.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                            AppButton(
+                                onClick = onGoCuadros,
+                                modifier = Modifier.weight(1f).height(48.dp),
+                                colorsOverride = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF2E7D32),
+                                    contentColor = Color.White,
+                                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                    disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             ) {
-                                Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Cuadros")
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(Icons.Default.Collections, contentDescription = null, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Cuadros")
+                                }
                             }
                         }
                     }
                 }
             }
-        }
-
-        // Sección 3: Productos más vendidos (los 3 primeros del catálogo)
-        item {
-            SectionTitle("Nuestros Más Vendidos") // Título reutilizable
-            // Fila horizontal que permite scroll si hay muchos productos
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp), // Espacio en los bordes
-                horizontalArrangement = Arrangement.spacedBy(16.dp) // Espacio entre tarjetas
-            ) {
-                // Itera sobre la lista de productos y crea una tarjeta para cada uno
-                items(popularProducts) { product ->
-                    ProductCardHome(
-                        product = product,
-                        onClick = onGoMolduras // Al hacer clic va a Molduras
-                    )
+            // Sección 3: Productos más vendidos (los 3 primeros del catálogo)
+            item {
+                SectionTitle("Nuestros Más Vendidos") // Título reutilizable
+                // Fila horizontal que permite scroll si hay muchos productos
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp), // Espacio en los bordes
+                    horizontalArrangement = Arrangement.spacedBy(16.dp) // Espacio entre tarjetas
+                ) {
+                    // Itera sobre la lista de productos y crea una tarjeta para cada uno
+                    items(popularProducts) { product ->
+                        ProductCardHome(
+                            product = product,
+                            onClick = onGoMolduras // Al hacer clic va a Molduras
+                        )
+                    }
                 }
             }
-        }
-
-        // Sección 4: Servicios ofrecidos
-        item {
-            Spacer(modifier = Modifier.height(32.dp)) // Espacio antes de la sección
-            SectionTitle("Nuestros Servicios") // Título reutilizable
-            // Columna para listar los servicios verticalmente
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp), // Márgenes laterales
-                verticalArrangement = Arrangement.spacedBy(12.dp) // Espacio entre tarjetas
-            ) {
-                // Itera sobre los servicios y crea una tarjeta para cada uno
-                services.forEach { service ->
-                    ServiceCardHome(service) // Llama al Composable de la tarjeta
+            // Sección 4: Servicios ofrecidos
+            item {
+                Spacer(modifier = Modifier.height(32.dp)) // Espacio antes de la sección
+                SectionTitle("Nuestros Servicios") // Título reutilizable
+                // Columna para listar los servicios verticalmente
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp), // Márgenes laterales
+                    verticalArrangement = Arrangement.spacedBy(12.dp) // Espacio entre tarjetas
+                ) {
+                    // Itera sobre los servicios y crea una tarjeta para cada uno
+                    services.forEach { service ->
+                        ServiceCardHome(service) // Llama al Composable de la tarjeta
+                    }
                 }
             }
+            // (CTA inferior eliminado a solicitud del usuario)
         }
-
-        // (CTA inferior eliminado a solicitud del usuario)
     }
 }
 
@@ -327,7 +352,7 @@ fun ProductCardHome(product: ProductHome, onClick: () -> Unit) {
                     )
                 }
                 Text(
-                    "$ ${String.format("%,d", product.price)}",
+                    "$${String.format("%,d", product.price)}",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold
@@ -338,7 +363,7 @@ fun ProductCardHome(product: ProductHome, onClick: () -> Unit) {
 }
 
 @Composable
-private fun QuickActionsRow(
+fun QuickActionsRow(
     onGoMolduras: () -> Unit,
     onGoCuadros: () -> Unit
 ) {
@@ -364,7 +389,7 @@ private fun QuickActionsRow(
 }
 
 @Composable
-private fun ActionChip(
+fun ActionChip(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     onClick: () -> Unit,
@@ -389,7 +414,7 @@ fun ServiceCardHome(service: ServiceHome) {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         // Color de fondo ligeramente diferente para destacar
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F0EB)) // Un color crema claro
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant) // Crema del tema
     ) {
         // Fila para el icono y el texto
         Row(
@@ -407,4 +432,3 @@ fun ServiceCardHome(service: ServiceHome) {
         }
     }
 }
-

@@ -4,9 +4,10 @@ import android.util.Patterns // Usamos el patrón estándar de Android para emai
 
 // Valida que el email no esté vacío y cumpla patrón de email
 fun validateEmail(email: String): String? {
-    if (email.isBlank()) return "El email es obligatorio"
+    if (email.isBlank()) return "El correo es obligatorio"
+    if (email.length < 8) return "Debe tener al menos 8 caracteres"
     val ok = Patterns.EMAIL_ADDRESS.matcher(email).matches()
-    return if (!ok) "Formato de email inválido" else null
+    return if (!ok) "Formato de correo inválido" else null
 }
 
 // Valida que el nombre contenga solo letras y espacios (sin números)

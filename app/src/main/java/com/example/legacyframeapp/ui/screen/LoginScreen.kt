@@ -24,7 +24,8 @@ import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 fun LoginScreenVm(
     vm: AuthViewModel,
     onLoginOkNavigateHome: () -> Unit,
-    onGoRegister: () -> Unit
+    onGoRegister: () -> Unit,
+    onGoResetPassword: () -> Unit = {}
 ) {
     val state by vm.login.collectAsStateWithLifecycle()
 
@@ -46,7 +47,8 @@ fun LoginScreenVm(
         onEmailChange = vm::onLoginEmailChange,
         onPassChange = vm::onLoginPassChange,
         onSubmit = vm::submitLogin,
-        onGoRegister = onGoRegister
+        onGoRegister = onGoRegister,
+        onGoResetPassword = onGoResetPassword
     )
 }
 
@@ -63,7 +65,8 @@ private fun LoginScreen(
     onEmailChange: (String) -> Unit,
     onPassChange: (String) -> Unit,
     onSubmit: () -> Unit,
-    onGoRegister: () -> Unit
+    onGoRegister: () -> Unit,
+    onGoResetPassword: () -> Unit
 ) {
     var showPass by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
@@ -106,7 +109,7 @@ private fun LoginScreen(
                 OutlinedTextField(
                     value = email,
                     onValueChange = onEmailChange,
-                    label = { Text("Email") },
+                    label = { Text("Correo") },
                     singleLine = true,
                     isError = emailError != null,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -164,6 +167,10 @@ private fun LoginScreen(
                 // --- BOTÓN IR A REGISTRO ---
                 OutlinedButton(onClick = onGoRegister, modifier = Modifier.fillMaxWidth()) {
                     Text("Crear cuenta")
+                }
+
+                TextButton(onClick = onGoResetPassword) {
+                    Text("¿Olvidaste tu contraseña?")
                 }
             }
         }

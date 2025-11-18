@@ -118,7 +118,7 @@ fun ContactScreen() {
                 email = it
                 emailError = validateEmailLocal(it)
             },
-            label = { Text("Email") },
+            label = { Text("Correo") },
             isError = emailError != null,
             supportingText = {
                 if (emailError != null) Text(emailError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)

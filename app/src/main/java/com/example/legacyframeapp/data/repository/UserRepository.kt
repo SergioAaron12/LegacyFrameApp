@@ -158,4 +158,40 @@ class UserRepository(
 
     // --- Otras funciones podrían ir aquí (ej: getUserById, updateProfile, etc.) ---
 
+    // Cambiar nombre y apellido (opcional) por id de usuario
+    suspend fun updateDisplayName(userId: Long, nombre: String, apellido: String?): Result<Unit> {
+        return try {
+            val affected = userDao.updateName(userId, nombre.trim(), apellido?.trim())
+            if (affected > 0) Result.success(Unit) else Result.failure(IllegalStateException("Usuario no encontrado"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Restablecer/actualizar contraseña por email
+    suspend fun resetPasswordByEmail(email: String, newPassword: String): Result<Unit> {
+        val normalizedEmail = email.trim().lowercase()
+        return try {
+            val existing = userDao.getByEmail(normalizedEmail) ?: return Result.failure(IllegalArgumentException("No existe una cuenta con ese correo"))
+            val affected = userDao.updatePasswordByEmail(normalizedEmail, newPassword)
+            if (affected > 0) Result.success(Unit) else Result.failure(IllegalStateException("No se pudo actualizar la contraseña"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Cambiar contraseña verificando la actual por id
+    suspend fun changePassword(userId: Long, currentPassword: String, newPassword: String): Result<Unit> {
+        return try {
+            val user = userDao.getById(userId) ?: return Result.failure(IllegalArgumentException("Usuario no encontrado"))
+            if (user.password != currentPassword) {
+                return Result.failure(IllegalArgumentException("La contraseña actual no es correcta"))
+            }
+            val affected = userDao.updatePasswordById(userId, newPassword)
+            if (affected > 0) Result.success(Unit) else Result.failure(IllegalStateException("No se pudo actualizar la contraseña"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
 } // Fin de la clase UserRepository

@@ -1,17 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
+    <!-- Versión nocturna explícita para asegurar coherencia en vistas XML (si se usan) -->
     <style name="Theme.LegacyFrameApp" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:forceDarkAllowed">true</item>
     </style>
-    
-    <!-- Tema para el Splash Screen -->
+
     <style name="Theme.App.SplashScreen" parent="Theme.LegacyFrameApp">
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <!-- Sin forzar colores claros: respeta modo claro/oscuro -->
     </style>
 </resources>

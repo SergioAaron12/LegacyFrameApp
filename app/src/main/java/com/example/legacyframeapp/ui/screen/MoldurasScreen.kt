@@ -22,6 +22,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 // --- Material Icons ---
 import androidx.compose.material.icons.Icons
@@ -55,6 +61,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.graphics.graphicsLayer
 
 // --- ViewModel y Lifecycle ---
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -98,6 +109,7 @@ fun MoldurasScreen(
     onAddProduct: () -> Unit,
     onAddToCart: (ProductEntity) -> Unit
 ) {
+    var fullscreenProduct by remember { mutableStateOf<ProductEntity?>(null) }
     Scaffold(
         // --- Animación #2: Botón Flotante de Admin ---
         floatingActionButton = {
@@ -154,9 +166,23 @@ fun MoldurasScreen(
                     ProductCard(
                         product = product,
                         onAddToCart = { onAddToCart(product) } // <-- Pasa la acción
+                        , onImageClick = { fullscreenProduct = product }
                     )
                 }
             }
+        }
+    }
+
+    // Visor fullscreen con zoom
+    if (fullscreenProduct != null) {
+        Dialog(
+            onDismissRequest = { fullscreenProduct = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            FullscreenImageViewer(
+                product = fullscreenProduct!!,
+                onClose = { fullscreenProduct = null }
+            )
         }
     }
 }
@@ -167,7 +193,8 @@ fun MoldurasScreen(
 @Composable
 private fun ProductCard(
     product: ProductEntity,
-    onAddToCart: () -> Unit
+    onAddToCart: () -> Unit,
+    onImageClick: (ProductEntity) -> Unit
 ) {
 
     val context = LocalContext.current
@@ -234,21 +261,32 @@ private fun ProductCard(
                     maxLines = 3
                 )
                 Spacer(Modifier.height(8.dp))
-                val green = Color(0xFF2E7D32)
-                Button(
-                    onClick = onAddToCart,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = green,
-                        contentColor = Color.White
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.AddShoppingCart,
-                        contentDescription = "Añadir al carrito",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    Text("Carrito", style = MaterialTheme.typography.bodySmall)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val green = Color(0xFF2E7D32)
+                    Button(
+                        onClick = { onImageClick(product) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    ) {
+                        Text("Ver", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    }
+                    Button(
+                        onClick = onAddToCart,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = green,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AddShoppingCart,
+                            contentDescription = "Añadir al carrito",
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text("Carrito", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
                 // ---------------------------------
             }
@@ -267,5 +305,84 @@ private fun categoryColors(category: String): Pair<Color, Color> {
         "nativas" -> Color(0xFF6C757D) to Color.White // secondary
         "finger-joint", "fingerjoint", "finger_joint", "finger joint" -> Color(0xFFFFC107) to Color(0xFF3A2E00) // warning
         else -> MaterialTheme.colorScheme.secondary to MaterialTheme.colorScheme.onSecondary
+    }
+}
+
+// ---------------------------------------------------------------
+// Fullscreen viewer con zoom y desplazamiento
+// ---------------------------------------------------------------
+@Composable
+private fun FullscreenImageViewer(
+    product: ProductEntity,
+    onClose: () -> Unit
+) {
+    val context = LocalContext.current
+    val placeholderPainter = rememberVectorPainter(image = Icons.Default.Photo)
+    // Modelo igual que en ProductCard
+    val model: Any? = when {
+        product.imagePath.isNotBlank() && product.imagePath.startsWith("http") -> product.imagePath
+        product.imagePath.isNotBlank() && java.io.File(product.imagePath).exists() -> java.io.File(product.imagePath)
+        product.imagePath.isNotBlank() -> {
+            val resId = context.resources.getIdentifier(product.imagePath, "drawable", context.packageName)
+            if (resId != 0) resId else ImageStorageHelper.getImageFile(context, product.imagePath)
+        }
+        else -> null
+    }
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+
+    // Reset cuando cambia el producto
+    androidx.compose.runtime.LaunchedEffect(product.id) {
+        scale = 1f
+        offset = Offset.Zero
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.95f))
+    ) {
+        // Imagen con gestos de zoom y pan
+        AsyncImage(
+            model = model,
+            contentDescription = product.name,
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        val newScale = (scale * zoom).coerceIn(1f, 5f)
+                        // Ajustar offset sólo si escala > 1
+                        scale = newScale
+                        if (newScale > 1f) {
+                            offset += pan
+                        } else {
+                            offset = Offset.Zero
+                        }
+                    }
+                }
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offset.x,
+                    translationY = offset.y
+                ),
+            contentScale = ContentScale.Fit,
+            placeholder = placeholderPainter,
+            error = placeholderPainter
+        )
+        // Barra superior de cierre
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+                .align(Alignment.TopEnd),
+            horizontalArrangement = Arrangement.End
+        ) {
+            FloatingActionButton(
+                onClick = onClose,
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Cerrar", tint = MaterialTheme.colorScheme.onSurface)
+            }
+        }
     }
 }

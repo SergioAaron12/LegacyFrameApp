@@ -86,7 +86,15 @@ fun AppRoot() {
     val navController = rememberNavController()
 
     val darkMode by authViewModel.darkMode.collectAsStateWithLifecycle()
-    UINavegacionTheme(darkTheme = darkMode) {
+    val themeMode by authViewModel.themeMode.collectAsStateWithLifecycle()
+    val accentHex by authViewModel.accentColor.collectAsStateWithLifecycle()
+    val fontScale by authViewModel.fontScale.collectAsStateWithLifecycle()
+    val resolvedDark = when(themeMode){
+        "light" -> false
+        "dark" -> true
+        else -> darkMode // system fallback: usar flujo existente
+    }
+    UINavegacionTheme(darkTheme = resolvedDark, accentHex = accentHex, fontScale = fontScale) {
         Surface(color = MaterialTheme.colorScheme.background) {
             // Prefetch de imágenes (lógica de tu compañero)
             LaunchedEffect(Unit) {

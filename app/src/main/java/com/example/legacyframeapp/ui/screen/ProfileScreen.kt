@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.OutlinedTextField
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -67,10 +68,13 @@ fun ProfileScreenVm(
         isLoggedIn = session.isLoggedIn,
         displayName = session.currentUser?.nombre ?: "",
         email = session.currentUser?.email ?: "",
+        lastName = session.currentUser?.apellido,
         onGoLogin = onGoLogin,
         onGoRegister = onGoRegister,
         onGoSettings = onGoSettings,
-        onLogout = onLogout
+        onLogout = onLogout,
+        onChangeName = { nombre, apellido -> vm.changeDisplayName(nombre, apellido) },
+        onChangePassword = { current, new, onResult -> vm.changePassword(current, new, onResult) }
     )
 }
 
@@ -79,10 +83,13 @@ fun ProfileScreen(
     isLoggedIn: Boolean,
     displayName: String,
     email: String,
+    lastName: String?,
     onGoLogin: () -> Unit,
     onGoRegister: () -> Unit,
     onGoSettings: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    onChangeName: (String, String?) -> Unit,
+    onChangePassword: (String, String, (Boolean, String?) -> Unit) -> Unit
 ) {
     var profileImageUri by remember { mutableStateOf<Uri?>(null) }
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -300,10 +307,42 @@ fun ProfileScreen(
 
             if (isLoggedIn) {
                 ListItem(
-                    headlineContent = { Text(displayName.ifBlank { "Usuario" }) },
+                    headlineContent = { Text((listOfNotNull(displayName.ifBlank { null }, lastName).joinToString(" ")).ifBlank { "Usuario" }) },
                     supportingContent = { Text(email) },
                     modifier = Modifier.fillMaxWidth()
                 )
+                var showNameDialog by remember { mutableStateOf(false) }
+                var showPasswordDialog by remember { mutableStateOf(false) }
+                var infoMessage by remember { mutableStateOf<String?>(null) }
+                if (infoMessage != null) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { infoMessage = null },
+                        title = { Text("Aviso") },
+                        text = { Text(infoMessage!!) },
+                        confirmButton = { TextButton(onClick = { infoMessage = null }) { Text("OK") } }
+                    )
+                }
+                if (showNameDialog) {
+                    ChangeNameDialog(
+                        currentFirst = displayName,
+                        currentLast = lastName,
+                        onDismiss = { showNameDialog = false },
+                        onConfirm = { n, a -> showNameDialog = false; onChangeName(n, a); infoMessage = "Nombre actualizado" }
+                    )
+                }
+                if (showPasswordDialog) {
+                    ChangePasswordDialog(
+                        onDismiss = { showPasswordDialog = false },
+                        onConfirm = { current, new ->
+                            onChangePassword(current, new) { ok, err ->
+                                showPasswordDialog = false
+                                infoMessage = if (ok) "Contraseña actualizada" else (err ?: "No se pudo actualizar")
+                            }
+                        }
+                    )
+                }
+                AppButton(modifier = Modifier.fillMaxWidth(), onClick = { showNameDialog = true }) { Text("Cambiar nombre") }
+                AppButton(modifier = Modifier.fillMaxWidth(), onClick = { showPasswordDialog = true }) { Text("Cambiar contraseña") }
                 AppButton(modifier = Modifier.fillMaxWidth(), onClick = onGoSettings) { Text("Configuraciones") }
                 AppButton(modifier = Modifier.fillMaxWidth(), onClick = onLogout) { Text("Cerrar sesión") }
             } else {
@@ -320,4 +359,67 @@ fun ProfileScreen(
             }
         }
     }
+}
+
+@Composable
+private fun ChangeNameDialog(
+    currentFirst: String,
+    currentLast: String?,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String?) -> Unit
+) {
+    var first by remember { mutableStateOf(currentFirst) }
+    var last by remember { mutableStateOf(currentLast ?: "") }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Cambiar nombre") },
+        text = {
+            Column {
+                OutlinedTextField(value = first, onValueChange = { first = it }, label = { Text("Nombre") })
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = last, onValueChange = { last = it }, label = { Text("Apellido (opcional)") })
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(first, last.ifBlank { null }) }) { Text("Guardar") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
+}
+
+@Composable
+private fun ChangePasswordDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String, String) -> Unit
+) {
+    var current by remember { mutableStateOf("") }
+    var newPass by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Cambiar contraseña") },
+        text = {
+            Column {
+                OutlinedTextField(value = current, onValueChange = { current = it }, label = { Text("Contraseña actual") })
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = newPass, onValueChange = { newPass = it }, label = { Text("Nueva contraseña") })
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = confirm, onValueChange = { confirm = it }, label = { Text("Confirmar contraseña") })
+                if (error != null) { Spacer(Modifier.height(8.dp)); Text(error!!, color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if (newPass != confirm) { error = "Las contraseñas no coinciden"; return@TextButton }
+                if (newPass.isBlank()) { error = "La nueva contraseña es obligatoria"; return@TextButton }
+                onConfirm(current, newPass)
+            }) { Text("Guardar") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
+    )
 }

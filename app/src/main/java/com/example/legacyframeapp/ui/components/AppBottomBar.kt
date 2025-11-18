@@ -20,9 +20,9 @@ fun AppBottomBar(
 ) {
     data class Item(val route: String, val label: String, val icon: ImageVector, val onClick: () -> Unit)
     val items = listOf(
-        Item(route = "home", label = "Home", icon = Icons.Default.Home, onClick = onHome),
-    Item(route = "profile", label = "Perfil", icon = Icons.Default.Person, onClick = onProfile),
-    Item(route = "settings", label = "Configuraciones", icon = Icons.Default.Settings, onClick = onSettings)
+        Item(route = "home", label = "Inicio", icon = Icons.Default.Home, onClick = onHome),
+        Item(route = "profile", label = "Perfil", icon = Icons.Default.Person, onClick = onProfile),
+        Item(route = "settings", label = "Configuraciones", icon = Icons.Default.Settings, onClick = onSettings)
     )
     val profileRoutes = setOf("profile")
     val settingsRoutes = setOf("settings", "purchases", "terms")

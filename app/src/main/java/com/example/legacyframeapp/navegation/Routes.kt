@@ -20,6 +20,7 @@ sealed class Route(val path: String) {
     data object Settings  : Route("settings")
     data object Purchases : Route("purchases")
     data object Terms     : Route("terms")
+    data object ResetPassword : Route("reset_password")
 }
 
 // Nota: usar Route evita errores al renombrar rutas y facilita el mantenimiento

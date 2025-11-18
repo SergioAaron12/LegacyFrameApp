@@ -13,6 +13,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.compose.runtime.LaunchedEffect
 import com.example.legacyframeapp.ui.components.AppBottomBar
 import com.example.legacyframeapp.ui.components.AppDrawer
 import com.example.legacyframeapp.ui.components.AppTopBar
@@ -35,6 +36,7 @@ import com.example.legacyframeapp.ui.screen.PurchasesScreenVm
 import com.example.legacyframeapp.ui.screen.RegisterScreenVm
 import com.example.legacyframeapp.ui.screen.SettingsScreenVm
 import com.example.legacyframeapp.ui.screen.TermsScreen
+import com.example.legacyframeapp.ui.screen.ResetPasswordScreenVm
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -206,7 +208,8 @@ fun AppNavGraph(
                     LoginScreenVm(
                         vm = authViewModel,
                         onLoginOkNavigateHome = goHome,
-                        onGoRegister = goRegister
+                        onGoRegister = goRegister,
+                        onGoResetPassword = { navController.navigate(Route.ResetPassword.path) }
                     )
                 }
                 composable(Route.Register.path) {
@@ -231,7 +234,8 @@ fun AppNavGraph(
                 composable(Route.Cart.path) {
                     CartScreenVm(
                         vm = authViewModel,
-                        onNavigateBack = goBack
+                        onNavigateBack = goBack,
+                        onRequireLogin = goLogin
                     )
                 }
                 composable(Route.Contact.path) {
@@ -240,16 +244,34 @@ fun AppNavGraph(
                 composable(Route.Settings.path) {
                     SettingsScreenVm(
                         vm = authViewModel,
-                        onGoPurchases = { navController.navigate(Route.Purchases.path) },
+                        onGoPurchases = {
+                            if (session.isLoggedIn) {
+                                navController.navigate(Route.Purchases.path)
+                            } else {
+                                goLogin()
+                            }
+                        },
                         onGoTerms = { navController.navigate(Route.Terms.path) },
-                        onGoContact = { navController.navigate(Route.Contact.path) }
+                        onGoContact = { navController.navigate(Route.Contact.path) },
+                        onGoLogin = goLogin
                     )
                 }
                 composable(Route.Purchases.path) {
-                    PurchasesScreenVm(vm = authViewModel)
+                    if (session.isLoggedIn) {
+                        PurchasesScreenVm(vm = authViewModel)
+                    } else {
+                        LaunchedEffect(Unit) { goLogin() }
+                    }
                 }
                 composable(Route.Terms.path) {
                     TermsScreen()
+                }
+                composable(Route.ResetPassword.path) {
+                    ResetPasswordScreenVm(
+                        vm = authViewModel,
+                        onSuccess = { goLogin() },
+                        onBack = { goLogin() }
+                    )
                 }
                 composable(Route.AddProduct.path) {
                     AddProductScreenVm(

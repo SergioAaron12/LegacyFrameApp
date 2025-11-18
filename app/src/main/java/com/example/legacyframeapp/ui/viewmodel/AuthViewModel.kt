@@ -79,6 +79,17 @@ data class SessionUiState(
     val currentUser: UserEntity? = null,
     val isAdmin: Boolean = false
 )
+data class ResetPasswordUiState(
+    val email: String = "",
+    val newPass: String = "",
+    val confirm: String = "",
+    val emailError: String? = null,
+    val passError: String? = null,
+    val confirmError: String? = null,
+    val isSubmitting: Boolean = false,
+    val success: Boolean = false,
+    val errorMsg: String? = null
+)
 
 data class AddProductUiState(
     val name: String = "",
@@ -131,6 +142,10 @@ class AuthViewModel(
 
     private val _session = MutableStateFlow(SessionUiState())
     val session: StateFlow<SessionUiState> = _session.asStateFlow()
+
+    // --- (Reset Password) ---
+    private val _resetPassword = MutableStateFlow(ResetPasswordUiState())
+    val resetPassword: StateFlow<ResetPasswordUiState> = _resetPassword.asStateFlow()
 
     // --- (Productos - Molduras) ---
     val products: StateFlow<List<ProductEntity>> =
@@ -193,6 +208,21 @@ class AuthViewModel(
     val avatarType: StateFlow<String> =
         userPreferences.avatarType
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "male")
+    // Nuevas preferencias
+    val themeMode: StateFlow<String> = userPreferences.themeMode
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "system")
+    val accentColor: StateFlow<String> = userPreferences.accentColor
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "#FF8B5C2A")
+    val fontScale: StateFlow<Float> = userPreferences.fontScale
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 1.0f)
+    val notifOffers: StateFlow<Boolean> = userPreferences.notifOffers
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), true)
+    val notifTracking: StateFlow<Boolean> = userPreferences.notifTracking
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), true)
+    val notifCart: StateFlow<Boolean> = userPreferences.notifCart
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), true)
+    val languagePref: StateFlow<String> = userPreferences.language
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "system")
 
     // --- (Historial de compras) ---
     val orders: StateFlow<List<OrderEntity>> =
@@ -418,6 +448,76 @@ class AuthViewModel(
             userPreferences.setLoggedIn(false)
         }
     }
+
+    // --- Cambio de Nombre ---
+    fun changeDisplayName(nombre: String, apellido: String?) {
+        val current = _session.value.currentUser ?: return
+        val nombreError = validateNameLettersOnly(nombre)
+        if (nombreError != null) {
+            // No tenemos un estado dedicado; podríamos usar un canal/toast. De momento, ignora si inválido.
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = userRepository.updateDisplayName(current.id, nombre, apellido)
+            if (result.isSuccess) {
+                val updated = current.copy(nombre = nombre.trim(), apellido = apellido?.trim())
+                _session.update { it.copy(currentUser = updated) }
+            }
+        }
+    }
+
+    // --- Reset Password UI handlers ---
+    fun onResetEmailChange(email: String) {
+        val emailError = validateEmail(email)
+        _resetPassword.update { it.copy(email = email, emailError = emailError) }
+    }
+    fun onResetNewPassChange(pass: String) {
+        val passError = validateStrongPassword(pass)
+        val confirmError = validateConfirm(pass, _resetPassword.value.confirm)
+        _resetPassword.update { it.copy(newPass = pass, passError = passError, confirmError = confirmError) }
+    }
+    fun onResetConfirmChange(confirm: String) {
+        val confirmError = validateConfirm(_resetPassword.value.newPass, confirm)
+        _resetPassword.update { it.copy(confirm = confirm, confirmError = confirmError) }
+    }
+    fun submitResetPassword() {
+        val s = _resetPassword.value
+        val emailErr = s.emailError ?: validateEmail(s.email)
+        val passErr = s.passError ?: validateStrongPassword(s.newPass)
+        val confErr = s.confirmError ?: validateConfirm(s.newPass, s.confirm)
+        if (emailErr != null || passErr != null || confErr != null) {
+            _resetPassword.update { it.copy(emailError = emailErr, passError = passErr, confirmError = confErr) }
+            return
+        }
+        viewModelScope.launch {
+            _resetPassword.update { it.copy(isSubmitting = true, errorMsg = null, success = false) }
+            val result = userRepository.resetPasswordByEmail(s.email, s.newPass)
+            _resetPassword.update {
+                if (result.isSuccess) it.copy(isSubmitting = false, success = true)
+                else it.copy(isSubmitting = false, success = false, errorMsg = result.exceptionOrNull()?.message ?: "No se pudo restablecer")
+            }
+        }
+    }
+    fun clearResetPasswordState() { _resetPassword.value = ResetPasswordUiState() }
+
+    // --- Cambio de contraseña desde Perfil ---
+    fun changePassword(current: String, new: String, onResult: (Boolean, String?) -> Unit) {
+        val user = _session.value.currentUser
+        if (user == null) { onResult(false, "No hay sesión activa"); return }
+        // Validaciones básicas
+        val passError = validateStrongPassword(new)
+        if (passError != null) { onResult(false, passError); return }
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = userRepository.changePassword(user.id, current, new)
+            if (result.isSuccess) {
+                val updated = user.copy(password = new)
+                _session.update { it.copy(currentUser = updated) }
+                withContext(Dispatchers.Main) { onResult(true, null) }
+            } else {
+                withContext(Dispatchers.Main) { onResult(false, result.exceptionOrNull()?.message) }
+            }
+        }
+    }
     fun submitRegister() {
         val s = _register.value
         val canSubmitFinal = checkRegisterCanSubmit(s)
@@ -427,7 +527,7 @@ class AuthViewModel(
                 apellidoError = it.apellidoError,
                 rutError = it.rutError ?: if(it.rut.isBlank()) "El RUT es obligatorio" else null,
                 dvError = it.dvError ?: if(it.dv.isBlank()) "El DV es obligatorio" else validateDv(it.dv, it.rut),
-                emailError = it.emailError ?: if(it.email.isBlank()) "El email es obligatorio" else null,
+                emailError = it.emailError ?: if(it.email.isBlank()) "El correo es obligatorio" else null,
                 phoneError = it.phoneError ?: if(it.phone.isBlank()) "El teléfono es obligatorio" else null,
                 passError = it.passError ?: if(it.pass.isBlank()) "La contraseña es obligatoria" else null,
                 confirmError = it.confirmError ?: if(it.confirm.isBlank()) "Confirma la contraseña" else if (it.pass != it.confirm) "Las contraseñas no coinciden" else null
@@ -653,6 +753,13 @@ class AuthViewModel(
     // --- Preferencias ---
     suspend fun setDarkMode(enabled: Boolean) { userPreferences.setDarkMode(enabled) }
     suspend fun setAvatarType(type: String) { userPreferences.setAvatarType(type) }
+    suspend fun setThemeMode(mode: String){ userPreferences.setThemeMode(mode) }
+    suspend fun setAccentColor(hex: String){ userPreferences.setAccentColor(hex) }
+    suspend fun setFontScale(scale: Float){ userPreferences.setFontScale(scale) }
+    suspend fun setNotifOffers(enabled: Boolean){ userPreferences.setNotifOffers(enabled) }
+    suspend fun setNotifTracking(enabled: Boolean){ userPreferences.setNotifTracking(enabled) }
+    suspend fun setNotifCart(enabled: Boolean){ userPreferences.setNotifCart(enabled) }
+    suspend fun setLanguage(code: String){ userPreferences.setLanguage(code) }
 
     // --- Historial de Compras ---
     fun recordOrder(items: List<CartItemEntity>, total: Int) {

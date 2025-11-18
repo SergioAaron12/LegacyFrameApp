@@ -128,7 +128,7 @@ abstract class AppDatabase : RoomDatabase() {
                                             category = "Paisajes",
                                             imagePath = "paisaje", // Nombre del drawable (sin extensión)
                                             isCustom = false,
-                                            artist = "Legacy Studio"
+                                            artist = "Sergio Peña"
                                         )
                                     )
                                 } catch (_: Exception) {}

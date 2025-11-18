@@ -175,8 +175,17 @@ fun CuadroCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                // NO mostramos artista para igualar a ProductCard
-                // if (cuadro.artist != null) { ... }
+                // Mostrar artista si existe
+                if (!cuadro.artist.isNullOrBlank()) {
+                    Text(
+                        text = "Autor: ${cuadro.artist}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = cuadro.description,

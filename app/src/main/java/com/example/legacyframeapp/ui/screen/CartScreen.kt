@@ -12,7 +12,9 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCartCheckout
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -37,22 +39,34 @@ import androidx.compose.ui.text.style.TextOverflow
 @Composable
 fun CartScreenVm(
     vm: AuthViewModel,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onRequireLogin: () -> Unit = {}
 ) {
     val items by vm.cartItems.collectAsStateWithLifecycle()
     val total by vm.cartTotal.collectAsStateWithLifecycle()
+    val session by vm.session.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     CartScreen(
         items = items,
         total = total,
+        isLoggedIn = session.isLoggedIn,
+        snackbarHostState = snackbarHostState,
         onRemoveOne = { item -> vm.updateCartQuantity(item, item.quantity - 1) },
         onAddOne = { item -> vm.updateCartQuantity(item, item.quantity + 1) },
         onRemoveItem = vm::removeFromCart,
         onPurchase = {
-            vm.recordOrder(items, total)
-            vm.showPurchaseNotification()
-            vm.clearCart()
-            onNavigateBack()
+            if (!session.isLoggedIn) {
+                // Mostrar aviso y opcionalmente redirigir
+                scope.launch { snackbarHostState.showSnackbar("Debes iniciar sesión para comprar.") }
+                onRequireLogin()
+            } else {
+                vm.recordOrder(items, total)
+                vm.showPurchaseNotification()
+                vm.clearCart()
+                onNavigateBack()
+            }
         },
         onBack = onNavigateBack
     )
@@ -64,6 +78,8 @@ fun CartScreenVm(
 fun CartScreen(
     items: List<CartItemEntity>,
     total: Int,
+    isLoggedIn: Boolean,
+    snackbarHostState: SnackbarHostState,
     onRemoveOne: (CartItemEntity) -> Unit,
     onAddOne: (CartItemEntity) -> Unit,
     onRemoveItem: (CartItemEntity) -> Unit,
@@ -71,6 +87,7 @@ fun CartScreen(
     onBack: () -> Unit
 ) {
     Scaffold(
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Carrito de Compras") },
@@ -106,10 +123,19 @@ fun CartScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
-                        Button(onClick = onPurchase) {
+                        Button(
+                            onClick = onPurchase,
+                            enabled = isLoggedIn,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                                disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
+                            )
+                        ) {
                             Icon(Icons.Default.ShoppingCartCheckout, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text("Comprar")
+                            Text(if (isLoggedIn) "Comprar" else "Inicia sesión")
                         }
                     }
                 }
@@ -117,7 +143,10 @@ fun CartScreen(
         }
     ) { innerPadding ->
         if (items.isEmpty()) {
-            Box( /* ... Mensaje Carrito Vacío ... */ ) {
+            Box(
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
                 Text("Tu carrito está vacío.", color = Color.Gray)
             }
         } else {
