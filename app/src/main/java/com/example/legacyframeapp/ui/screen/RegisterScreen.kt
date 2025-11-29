@@ -292,7 +292,7 @@ private fun RegisterScreen(
 
                 // --- BOTÓN IR A LOGIN ---
                 OutlinedButton(onClick = onGoLogin, modifier = Modifier.fillMaxWidth()) {
-                    Text("¿Ya tienes cuenta? Ir a Login")
+                    Text("¿Ya tienes cuenta? Ir a Iniciar Sesión")
                 }
             }
         }

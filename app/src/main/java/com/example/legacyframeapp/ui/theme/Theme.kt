@@ -10,19 +10,14 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-<<<<<<< HEAD
-import androidx.compose.ui.graphics.Color // Importa Color directamente
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-=======
-import androidx.compose.ui.graphics.Color
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 
 private val LightColorScheme = lightColorScheme(
-<<<<<<< HEAD
     primary = PrimaryBrown,
     onPrimary = White,
     primaryContainer = PrimaryContainerBrown,
@@ -35,30 +30,16 @@ private val LightColorScheme = lightColorScheme(
     onTertiary = TextDark,
     tertiaryContainer = AccentContainerBrown,
     onTertiaryContainer = OnAccentContainerBrown,
-    background = LightBackground, // crema claro
+    background = LightBackground,
     onBackground = TextDark,
-    surface = LightBackground, // unifica superficie a crema café claro
+    surface = LightBackground,
     onSurface = TextDark,
-    surfaceVariant = Color(0xFFF2E7DB), // variante ligeramente más oscura
+    surfaceVariant = Color(0xFFF2E7DB),
     outline = DarkBrown,
     error = ErrorRed,
     onError = White,
     inverseSurface = DarkBrown,
     inverseOnSurface = White
-=======
-    primary = PrimaryBrown,         // Color principal (Usado por TopAppBar, botones llenos, etc.)
-    secondary = SecondaryBrown,     // Color secundario (Menos usado por defecto)
-    tertiary = AccentBrown,         // Color de acento (FloatingActionButton, badges, etc.)
-    background = LightBackground,   // Fondo general de las pantallas
-    surface = White,                // Fondo de elementos elevados como Cards, Menús
-    onPrimary = White,              // Color del texto/iconos SOBRE el color primario (ej: texto en TopBar café)
-    onSecondary = White,            // Color del texto/iconos SOBRE el color secundario
-    onTertiary = TextDark,          // Color del texto/iconos SOBRE el color de acento
-    onBackground = TextDark,        // Color del texto SOBRE el fondo general
-    onSurface = TextDark,           // Color del texto SOBRE superficies (ej: texto en Cards blancas)
-    error = ErrorRed,               // Color para mensajes de error
-    onError = White                 // Color del texto SOBRE el color de error
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
 )
 
 private val DarkColorScheme = darkColorScheme(
@@ -74,11 +55,11 @@ private val DarkColorScheme = darkColorScheme(
     onTertiary = White,
     tertiaryContainer = AccentContainerBrown,
     onTertiaryContainer = OnAccentContainerBrown,
-    background = Color(0xFF1A140E), // fondo marrón muy oscuro (en vez de negro puro)
+    background = Color(0xFF1A140E),
     onBackground = White,
-    surface = Color(0xFF241A12), // superficie ligeramente más clara que background
+    surface = Color(0xFF241A12),
     onSurface = White,
-    surfaceVariant = Color(0xFF2E2219), // variante para list items
+    surfaceVariant = Color(0xFF2E2219),
     outline = DarkOutline,
     error = ErrorRed,
     onError = White,
@@ -86,17 +67,12 @@ private val DarkColorScheme = darkColorScheme(
     inverseOnSurface = InverseOnSurface
 )
 
-// --- Función Composable del Tema ---
-// Esta es la función que envuelve en MainActivity.kt
 @Composable
 fun UINavegacionTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-<<<<<<< HEAD
     dynamicColor: Boolean = true,
     accentHex: String? = null,
     fontScale: Float = 1f,
-=======
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -107,7 +83,6 @@ fun UINavegacionTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
-    // Accent override (solo primary)
     val accentColor: Color? = accentHex?.let {
         try { Color(android.graphics.Color.parseColor(it)) } catch (e: Exception) { null }
     }
@@ -116,11 +91,8 @@ fun UINavegacionTheme(
     }
     val view = LocalView.current
     if (!view.isInEditMode) {
-        // Efecto secundario para cambiar el color de la barra de estado del sistema
         SideEffect {
             val window = (view.context as Activity).window
-            // Colores de system bars coherentes con el fondo
-            // Ajuste: usar primary para status bar para pedido de color café superior
             window.statusBarColor = baseScheme.primary.toArgb()
             window.navigationBarColor = baseScheme.background.toArgb()
             val insetsController = WindowCompat.getInsetsController(window, view)
@@ -129,8 +101,6 @@ fun UINavegacionTheme(
         }
     }
 
-    // Aplica el tema de Material 3 a todo el contenido dentro de él
-    // Escalado tipográfico simple
     val scaledTypography = Typography.copy(
         displayLarge = Typography.displayLarge.copy(fontSize = Typography.displayLarge.fontSize * fontScale),
         displayMedium = Typography.displayMedium.copy(fontSize = Typography.displayMedium.fontSize * fontScale),

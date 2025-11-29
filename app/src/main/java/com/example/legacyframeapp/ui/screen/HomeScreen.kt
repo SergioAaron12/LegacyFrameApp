@@ -227,10 +227,6 @@ fun HomeScreen(
             }
             // (CTA inferior eliminado a solicitud del usuario)
         }
-<<<<<<< HEAD
-=======
-
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
     }
 }
 

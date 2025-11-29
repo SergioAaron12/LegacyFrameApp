@@ -75,17 +75,10 @@ fun loggedInDrawerItems(
     onAdmin: (() -> Unit)? = null,
     onLogout: () -> Unit
 ): List<DrawerItem> = listOf(
-<<<<<<< HEAD
     DrawerItem("Inicio", Icons.Filled.Home, onHome),
-    DrawerItem("Molduras", Icons.AutoMirrored.Filled.ListAlt, onMolduras), // <-- NUEVO ÍTEM
-    DrawerItem("Cuadros", Icons.Filled.Photo, onCuadros), // <-- NUEVO ÍTEM
-    DrawerItem("Carrito", Icons.Filled.ShoppingCart, onCart), // <-- NUEVO ÍTEM
-=======
-    DrawerItem("Home", Icons.Filled.Home, onHome),
     DrawerItem("Molduras", Icons.AutoMirrored.Filled.ListAlt, onMolduras),
     DrawerItem("Cuadros", Icons.Filled.Photo, onCuadros),
     DrawerItem("Carrito", Icons.Filled.ShoppingCart, onCart),
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
     // Inserta Admin si el callback no es nulo
     *listOfNotNull(onAdmin?.let { DrawerItem("Administrador", Icons.Filled.AdminPanelSettings, it) }).toTypedArray(),
     DrawerItem("Cerrar Sesión", Icons.AutoMirrored.Filled.Logout, onLogout)
