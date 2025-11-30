@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-<<<<<<< HEAD
+
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
@@ -28,8 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
 // --- Material Icons ---
-=======
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
+
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Photo
@@ -56,7 +55,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-<<<<<<< HEAD
+
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.window.Dialog
@@ -64,8 +63,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.graphics.graphicsLayer
 
 // --- ViewModel y Lifecycle ---
-=======
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
+
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.example.legacyframeapp.data.local.product.ProductEntity

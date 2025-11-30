@@ -4,25 +4,20 @@ import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-<<<<<<< HEAD
-import androidx.compose.ui.graphics.Color // Importa Color directamente
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
-=======
-import androidx.compose.ui.graphics.Color
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
-
+// Paleta de colores para el tema claro (Light Theme)
 private val LightColorScheme = lightColorScheme(
-<<<<<<< HEAD
     primary = PrimaryBrown,
     onPrimary = White,
     primaryContainer = PrimaryContainerBrown,
@@ -45,22 +40,9 @@ private val LightColorScheme = lightColorScheme(
     onError = White,
     inverseSurface = DarkBrown,
     inverseOnSurface = White
-=======
-    primary = PrimaryBrown,         // Color principal (Usado por TopAppBar, botones llenos, etc.)
-    secondary = SecondaryBrown,     // Color secundario (Menos usado por defecto)
-    tertiary = AccentBrown,         // Color de acento (FloatingActionButton, badges, etc.)
-    background = LightBackground,   // Fondo general de las pantallas
-    surface = White,                // Fondo de elementos elevados como Cards, Menús
-    onPrimary = White,              // Color del texto/iconos SOBRE el color primario (ej: texto en TopBar café)
-    onSecondary = White,            // Color del texto/iconos SOBRE el color secundario
-    onTertiary = TextDark,          // Color del texto/iconos SOBRE el color de acento
-    onBackground = TextDark,        // Color del texto SOBRE el fondo general
-    onSurface = TextDark,           // Color del texto SOBRE superficies (ej: texto en Cards blancas)
-    error = ErrorRed,               // Color para mensajes de error
-    onError = White                 // Color del texto SOBRE el color de error
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
 )
 
+// Paleta de colores para el tema oscuro (Dark Theme)
 private val DarkColorScheme = darkColorScheme(
     primary = DarkBrown,
     onPrimary = White,
@@ -86,51 +68,56 @@ private val DarkColorScheme = darkColorScheme(
     inverseOnSurface = InverseOnSurface
 )
 
-// --- Función Composable del Tema ---
-// Esta es la función que envuelve en MainActivity.kt
+/**
+ * Función principal del tema de la aplicación.
+ * Permite configurar el tema oscuro/claro, color dinámico (Android 12+),
+ * un color de acento personalizado y escalado de fuentes.
+ */
 @Composable
 fun UINavegacionTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-<<<<<<< HEAD
-    dynamicColor: Boolean = true,
-    accentHex: String? = null,
-    fontScale: Float = 1f,
-=======
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
+    dynamicColor: Boolean = true, // Habilita colores dinámicos del sistema en Android 12+
+    accentHex: String? = null,    // Opcional: Permite sobreescribir el color primario con un valor hexadecimal
+    fontScale: Float = 1f,        // Opcional: Permite escalar el tamaño de todas las fuentes
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    var baseScheme = when {
+
+    // Determina el esquema de color base
+    var colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
-    // Accent override (solo primary)
-    val accentColor: Color? = accentHex?.let {
-        try { Color(android.graphics.Color.parseColor(it)) } catch (e: Exception) { null }
+
+    // Sobrescribe el color primario si se proporciona un accentHex válido
+    accentHex?.let { hex ->
+        try {
+            val accentColor = Color(android.graphics.Color.parseColor(hex))
+            colorScheme = colorScheme.copy(primary = accentColor)
+        } catch (e: IllegalArgumentException) {
+            // El color hexadecimal no es válido, no hacemos nada
+        }
     }
-    if (accentColor != null) {
-        baseScheme = baseScheme.copy(primary = accentColor)
-    }
+
     val view = LocalView.current
     if (!view.isInEditMode) {
-        // Efecto secundario para cambiar el color de la barra de estado del sistema
+        // Efecto secundario para cambiar el color de las barras de sistema (estado y navegación)
         SideEffect {
             val window = (view.context as Activity).window
-            // Colores de system bars coherentes con el fondo
-            // Ajuste: usar primary para status bar para pedido de color café superior
-            window.statusBarColor = baseScheme.primary.toArgb()
-            window.navigationBarColor = baseScheme.background.toArgb()
+            window.statusBarColor = colorScheme.primary.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
+
+            // Configura el color de los iconos de las barras de sistema (claros u oscuros)
             val insetsController = WindowCompat.getInsetsController(window, view)
             insetsController.isAppearanceLightStatusBars = !darkTheme
             insetsController.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 
-    // Aplica el tema de Material 3 a todo el contenido dentro de él
-    // Escalado tipográfico simple
+    // Escala la tipografía según el factor 'fontScale'
     val scaledTypography = Typography.copy(
         displayLarge = Typography.displayLarge.copy(fontSize = Typography.displayLarge.fontSize * fontScale),
         displayMedium = Typography.displayMedium.copy(fontSize = Typography.displayMedium.fontSize * fontScale),
@@ -148,5 +135,11 @@ fun UINavegacionTheme(
         labelMedium = Typography.labelMedium.copy(fontSize = Typography.labelMedium.fontSize * fontScale),
         labelSmall = Typography.labelSmall.copy(fontSize = Typography.labelSmall.fontSize * fontScale)
     )
-    MaterialTheme(colorScheme = baseScheme, typography = scaledTypography, content = content)
+
+    // Aplica el tema de Material 3 al contenido de la app
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = scaledTypography,
+        content = content
+    )
 }

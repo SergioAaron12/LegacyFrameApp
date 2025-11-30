@@ -88,4 +88,8 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // (Eliminado duplicado de coil-compose 2.6.0)
+
+    // RETROFIT (Para conectar con las APIs de Java)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0") // Para convertir JSON a Objetos Kotlin
 }

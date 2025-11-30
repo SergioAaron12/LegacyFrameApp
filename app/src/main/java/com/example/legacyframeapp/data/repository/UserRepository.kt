@@ -145,7 +145,7 @@ class UserRepository(
         }
         return admin
     }
-<<<<<<< HEAD
+
     // ----------------------------
 
     // --- Otras funciones podrían ir aquí (ej: getUserById, updateProfile, etc.) ---
@@ -187,6 +187,4 @@ class UserRepository(
     }
 
 } // Fin de la clase UserRepository
-=======
-}
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
+

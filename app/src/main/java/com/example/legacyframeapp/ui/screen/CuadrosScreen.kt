@@ -173,7 +173,7 @@ fun CuadroCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-<<<<<<< HEAD
+
                 // Mostrar artista si existe
                 if (!cuadro.artist.isNullOrBlank()) {
                     Text(
@@ -185,8 +185,7 @@ fun CuadroCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-=======
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
+
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = cuadro.description,

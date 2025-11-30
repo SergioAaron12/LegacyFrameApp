@@ -72,21 +72,25 @@ fun loggedInDrawerItems(
     onMolduras: () -> Unit,
     onCuadros: () -> Unit,
     onCart: () -> Unit,
-    onAdmin: (() -> Unit)? = null,
+    onAdmin: (() -> Unit)? = null, // Callback opcional para el panel de admin
     onLogout: () -> Unit
-): List<DrawerItem> = listOf(
-<<<<<<< HEAD
-    DrawerItem("Inicio", Icons.Filled.Home, onHome),
-    DrawerItem("Molduras", Icons.AutoMirrored.Filled.ListAlt, onMolduras), // <-- NUEVO ÍTEM
-    DrawerItem("Cuadros", Icons.Filled.Photo, onCuadros), // <-- NUEVO ÍTEM
-    DrawerItem("Carrito", Icons.Filled.ShoppingCart, onCart), // <-- NUEVO ÍTEM
-=======
-    DrawerItem("Home", Icons.Filled.Home, onHome),
-    DrawerItem("Molduras", Icons.AutoMirrored.Filled.ListAlt, onMolduras),
-    DrawerItem("Cuadros", Icons.Filled.Photo, onCuadros),
-    DrawerItem("Carrito", Icons.Filled.ShoppingCart, onCart),
->>>>>>> 0b9daa6a0a9959c2f42ddd7c54e721e8254e8e16
-    // Inserta Admin si el callback no es nulo
-    *listOfNotNull(onAdmin?.let { DrawerItem("Administrador", Icons.Filled.AdminPanelSettings, it) }).toTypedArray(),
-    DrawerItem("Cerrar Sesión", Icons.AutoMirrored.Filled.Logout, onLogout)
-)
+): List<DrawerItem> {
+    // Creamos una lista mutable para poder añadir elementos de forma condicional
+    val items = mutableListOf(
+        DrawerItem("Inicio", Icons.Filled.Home, onHome),
+        DrawerItem("Molduras", Icons.AutoMirrored.Filled.ListAlt, onMolduras),
+        DrawerItem("Cuadros", Icons.Filled.Photo, onCuadros),
+        DrawerItem("Carrito", Icons.Filled.ShoppingCart, onCart)
+    )
+
+    // Si la función onAdmin no es nula, añadimos el ítem de Administrador a la lista
+    onAdmin?.let { adminAction ->
+        items.add(DrawerItem("Administrador", Icons.Filled.AdminPanelSettings, adminAction))
+    }
+
+    // Finalmente, añadimos el ítem para cerrar sesión
+    items.add(DrawerItem("Cerrar Sesión", Icons.AutoMirrored.Filled.Logout, onLogout))
+
+    // Devolvemos la lista completa
+    return items
+}
