@@ -22,13 +22,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Photo
-import com.example.legacyframeapp.ui.components.AppButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,10 +45,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.OutlinedTextField
 import androidx.core.content.FileProvider
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.example.legacyframeapp.ui.components.AppButton
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import java.io.File
 
@@ -61,6 +63,8 @@ fun ProfileScreenVm(
     onLogout: () -> Unit
 ) {
     val session by vm.session.collectAsStateWithLifecycle()
+
+    // Aquí usamos los datos del usuario (si existen) o cadenas vacías
     ProfileScreen(
         isLoggedIn = session.isLoggedIn,
         displayName = session.currentUser?.nombre ?: "",
@@ -93,28 +97,32 @@ fun ProfileScreen(
     var showConfirmDialog by remember { mutableStateOf(false) }
     var showImageSourceDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    
+
     // URI para la foto tomada con la cámara
     var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
-    
+
     // Cargar la imagen guardada al iniciar
     LaunchedEffect(email) {
         if (email.isNotBlank()) {
             val prefs = context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
-            val savedUri = prefs.getString("profile_image_$email", null)
-            profileImageUri = savedUri?.let { Uri.parse(it) }
+            val savedUriString = prefs.getString("profile_image_$email", null)
+            // Corrección KTX: toUri()
+            profileImageUri = savedUriString?.let { Uri.parse(it) }
         }
     }
-    
+
     // Función para guardar la imagen
     fun saveProfileImage(uri: Uri) {
         if (email.isNotBlank()) {
             val prefs = context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
-            prefs.edit().putString("profile_image_$email", uri.toString()).apply()
+            // Corrección KTX: edit { ... }
+            prefs.edit {
+                putString("profile_image_$email", uri.toString())
+            }
             profileImageUri = uri
         }
     }
-    
+
     // Crear URI para la cámara en almacenamiento interno persistente
     fun createImageUri(): Uri {
         val dir = File(context.filesDir, "profile_images")
@@ -126,7 +134,7 @@ fun ProfileScreen(
             imageFile
         )
     }
-    
+
     // Launcher para seleccionar imagen de la galería
     val pickImageLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -136,7 +144,7 @@ fun ProfileScreen(
             showConfirmDialog = true
         }
     }
-    
+
     // Launcher para tomar foto con la cámara
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
@@ -161,9 +169,10 @@ fun ProfileScreen(
             )
         }
     }
-    
+
     // Diálogo de selección de fuente (Cámara o Galería)
     if (showImageSourceDialog) {
+        // Corrección: Eliminado calificador redundante androidx.compose.material3.
         AlertDialog(
             onDismissRequest = { showImageSourceDialog = false },
             title = { Text("Seleccionar foto") },
@@ -175,7 +184,6 @@ fun ProfileScreen(
                     OutlinedButton(
                         onClick = {
                             showImageSourceDialog = false
-                            // Solicitar permiso de cámara y continuar
                             requestCameraPermission.launch(android.Manifest.permission.CAMERA)
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -184,7 +192,7 @@ fun ProfileScreen(
                         Spacer(Modifier.width(8.dp))
                         Text("Tomar foto")
                     }
-                    
+
                     OutlinedButton(
                         onClick = {
                             showImageSourceDialog = false
@@ -208,11 +216,11 @@ fun ProfileScreen(
             }
         )
     }
-    
+
     // Diálogo de confirmación
     if (showConfirmDialog && tempImageUri != null) {
         AlertDialog(
-            onDismissRequest = { 
+            onDismissRequest = {
                 showConfirmDialog = false
                 tempImageUri = null
             },
@@ -241,7 +249,7 @@ fun ProfileScreen(
             }
         )
     }
-    
+
     Scaffold { inner ->
         Column(
             modifier = Modifier
@@ -259,7 +267,6 @@ fun ProfileScreen(
                 contentAlignment = Alignment.Center
             ) {
                 if (profileImageUri != null) {
-                    // Mostrar imagen seleccionada
                     AsyncImage(
                         model = profileImageUri,
                         contentDescription = "Foto de perfil",
@@ -270,7 +277,6 @@ fun ProfileScreen(
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Icono por defecto
                     Icon(
                         imageVector = Icons.Default.AccountCircle,
                         contentDescription = "Foto de perfil",
@@ -280,13 +286,10 @@ fun ProfileScreen(
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
-                
-                // Botón para cambiar foto (solo si está logueado)
+
                 if (isLoggedIn) {
                     IconButton(
-                        onClick = {
-                            showImageSourceDialog = true
-                        },
+                        onClick = { showImageSourceDialog = true },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .size(36.dp)
@@ -311,8 +314,9 @@ fun ProfileScreen(
                 var showNameDialog by remember { mutableStateOf(false) }
                 var showPasswordDialog by remember { mutableStateOf(false) }
                 var infoMessage by remember { mutableStateOf<String?>(null) }
+
                 if (infoMessage != null) {
-                    androidx.compose.material3.AlertDialog(
+                    AlertDialog(
                         onDismissRequest = { infoMessage = null },
                         title = { Text("Aviso") },
                         text = { Text(infoMessage!!) },
@@ -367,7 +371,9 @@ private fun ChangeNameDialog(
 ) {
     var first by remember { mutableStateOf(currentFirst) }
     var last by remember { mutableStateOf(currentLast ?: "") }
-    androidx.compose.material3.AlertDialog(
+
+    // Corrección: Eliminado calificador redundante
+    AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Cambiar nombre") },
         text = {
@@ -395,7 +401,9 @@ private fun ChangePasswordDialog(
     var newPass by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
-    androidx.compose.material3.AlertDialog(
+
+    // Corrección: Eliminado calificador redundante
+    AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Cambiar contraseña") },
         text = {
@@ -405,7 +413,7 @@ private fun ChangePasswordDialog(
                 OutlinedTextField(value = newPass, onValueChange = { newPass = it }, label = { Text("Nueva contraseña") })
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(value = confirm, onValueChange = { confirm = it }, label = { Text("Confirmar contraseña") })
-                if (error != null) { Spacer(Modifier.height(8.dp)); Text(error!!, color = androidx.compose.material3.MaterialTheme.colorScheme.error) }
+                if (error != null) { Spacer(Modifier.height(8.dp)); Text(error!!, color = MaterialTheme.colorScheme.error) }
             }
         },
         confirmButton = {

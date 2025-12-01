@@ -66,7 +66,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.example.legacyframeapp.data.local.product.ProductEntity
+import com.example.legacyframeapp.domain.model.Product // <--- CAMBIO IMPORTANTE
 import com.example.legacyframeapp.domain.ImageStorageHelper
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
@@ -78,7 +78,7 @@ fun MoldurasScreenVm(
     vm: AuthViewModel,
     onAddProduct: () -> Unit
 ) {
-    // Observamos los estados del ViewModel
+    // Observamos los estados del ViewModel (que ahora es List<Product>)
     val products by vm.products.collectAsStateWithLifecycle()
     val session by vm.session.collectAsStateWithLifecycle()
 
@@ -95,12 +95,14 @@ fun MoldurasScreenVm(
 // -----------------------------------------------------------------
 @Composable
 fun MoldurasScreen(
-    products: List<ProductEntity>,
+    products: List<Product>, // <--- CAMBIO: ProductEntity -> Product
     isAdmin: Boolean,
     onAddProduct: () -> Unit,
-    onAddToCart: (ProductEntity) -> Unit
+    onAddToCart: (Product) -> Unit
 ) {
-    var fullscreenProduct by remember { mutableStateOf<ProductEntity?>(null) }
+    // Estado para el visor fullscreen (usando Product)
+    var fullscreenProduct by remember { mutableStateOf<Product?>(null) }
+
     Scaffold(
         // --- Botón Flotante de Admin ---
         floatingActionButton = {
@@ -117,9 +119,8 @@ fun MoldurasScreen(
                 }
             }
         }
-    ) { innerPadding -> // 'innerPadding' es el espacio seguro (lejos de la TopBar, etc)
+    ) { innerPadding ->
 
-        // Verificamos si la lista está vacía
         if (products.isEmpty()) {
             Box(
                 modifier = Modifier
@@ -139,11 +140,10 @@ fun MoldurasScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding), // Aplicamos el padding del Scaffold
-                contentPadding = PaddingValues(16.dp), // Padding interno para la lista
-                verticalArrangement = Arrangement.spacedBy(12.dp) // Espacio entre ítems
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Cabecera de la lista
                 item {
                     Text(
                         text = "Catálogo de Molduras",
@@ -152,19 +152,19 @@ fun MoldurasScreen(
                     )
                 }
 
-                // Un ítem por cada producto en la lista
+                // items usa la key 'id' del Product
                 items(products, key = { it.id }) { product ->
                     ProductCard(
                         product = product,
-                        onAddToCart = { onAddToCart(product) } // <-- Pasa la acción
-                        , onImageClick = { fullscreenProduct = product }
+                        onAddToCart = { onAddToCart(product) },
+                        onImageClick = { fullscreenProduct = product }
                     )
                 }
             }
         }
     }
 
-    // Visor fullscreen con zoom
+    // Visor fullscreen
     if (fullscreenProduct != null) {
         Dialog(
             onDismissRequest = { fullscreenProduct = null },
@@ -183,9 +183,9 @@ fun MoldurasScreen(
 // -----------------------------------------------------------------
 @Composable
 private fun ProductCard(
-    product: ProductEntity,
+    product: Product, // <--- CAMBIO: ProductEntity -> Product
     onAddToCart: () -> Unit,
-    onImageClick: (ProductEntity) -> Unit
+    onImageClick: (Product) -> Unit
 ) {
 
     val context = LocalContext.current
@@ -195,21 +195,20 @@ private fun ProductCard(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        // ---------------------------------
-
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            // Resolver modelo de imagen: URL, archivo, drawable por nombre o almacenamiento interno
+            // Resolver modelo de imagen: URL, archivo o drawable
+            // CAMBIO: imagePath -> imageUrl
             val model: Any? = when {
-                product.imagePath.isNotBlank() && product.imagePath.startsWith("http") -> product.imagePath
-                product.imagePath.isNotBlank() && java.io.File(product.imagePath).exists() -> java.io.File(product.imagePath)
-                product.imagePath.isNotBlank() -> {
-                    val resId = context.resources.getIdentifier(product.imagePath, "drawable", context.packageName)
-                    if (resId != 0) resId else ImageStorageHelper.getImageFile(context, product.imagePath)
+                product.imageUrl.isNotBlank() && product.imageUrl.startsWith("http") -> product.imageUrl
+                product.imageUrl.isNotBlank() && java.io.File(product.imageUrl).exists() -> java.io.File(product.imageUrl)
+                product.imageUrl.isNotBlank() -> {
+                    val resId = context.resources.getIdentifier(product.imageUrl, "drawable", context.packageName)
+                    if (resId != 0) resId else ImageStorageHelper.getImageFile(context, product.imageUrl)
                 }
                 else -> null
             }
@@ -235,11 +234,19 @@ private fun ProductCard(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(4.dp))
-                // Badge de categoría (colores inspirados en Bootstrap del sitio)
+
+                // Badge de categoría
                 val (badgeBg, badgeFg) = categoryColors(product.category)
                 AssistChip(
                     onClick = {},
-                    label = { Text(product.category.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }) },
+                    // Formateo de texto de categoría
+                    label = {
+                        Text(
+                            product.category.replaceFirstChar {
+                                if (it.isLowerCase()) it.titlecase() else it.toString()
+                            }
+                        )
+                    },
                     colors = AssistChipDefaults.assistChipColors(
                         containerColor = badgeBg,
                         labelColor = badgeFg
@@ -279,7 +286,6 @@ private fun ProductCard(
                         Text("Carrito", style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                // ---------------------------------
             }
         }
     }
@@ -303,21 +309,23 @@ private fun categoryColors(category: String): Pair<Color, Color> {
 // ---------------------------------------------------------------
 @Composable
 private fun FullscreenImageViewer(
-    product: ProductEntity,
+    product: Product, // <--- CAMBIO: ProductEntity -> Product
     onClose: () -> Unit
 ) {
     val context = LocalContext.current
     val placeholderPainter = rememberVectorPainter(image = Icons.Default.Photo)
-    // Modelo igual que en ProductCard
+
+    // Modelo igual que en ProductCard. CAMBIO: imagePath -> imageUrl
     val model: Any? = when {
-        product.imagePath.isNotBlank() && product.imagePath.startsWith("http") -> product.imagePath
-        product.imagePath.isNotBlank() && java.io.File(product.imagePath).exists() -> java.io.File(product.imagePath)
-        product.imagePath.isNotBlank() -> {
-            val resId = context.resources.getIdentifier(product.imagePath, "drawable", context.packageName)
-            if (resId != 0) resId else ImageStorageHelper.getImageFile(context, product.imagePath)
+        product.imageUrl.isNotBlank() && product.imageUrl.startsWith("http") -> product.imageUrl
+        product.imageUrl.isNotBlank() && java.io.File(product.imageUrl).exists() -> java.io.File(product.imageUrl)
+        product.imageUrl.isNotBlank() -> {
+            val resId = context.resources.getIdentifier(product.imageUrl, "drawable", context.packageName)
+            if (resId != 0) resId else ImageStorageHelper.getImageFile(context, product.imageUrl)
         }
         else -> null
     }
+
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
@@ -340,7 +348,6 @@ private fun FullscreenImageViewer(
                 .pointerInput(Unit) {
                     detectTransformGestures { _, pan, zoom, _ ->
                         val newScale = (scale * zoom).coerceIn(1f, 5f)
-                        // Ajustar offset sólo si escala > 1
                         scale = newScale
                         if (newScale > 1f) {
                             offset += pan

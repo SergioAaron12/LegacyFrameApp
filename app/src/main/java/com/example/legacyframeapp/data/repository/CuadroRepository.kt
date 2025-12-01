@@ -1,38 +1,23 @@
 package com.example.legacyframeapp.data.repository
 
-import com.example.legacyframeapp.data.local.cuadro.CuadroDao
-import com.example.legacyframeapp.data.local.cuadro.CuadroEntity
-import kotlinx.coroutines.flow.Flow
+import com.example.legacyframeapp.domain.model.Cuadro
 
-class CuadroRepository(
-    private val cuadroDao: CuadroDao
-) {
+class CuadroRepository {
 
-    fun getAllCuadros(): Flow<List<CuadroEntity>> {
-        return cuadroDao.getAllCuadros()
+    // Este repositorio ahora actúa como un placeholder o gestor futuro para la API.
+    // Actualmente, el AuthViewModel obtiene los "Cuadros" filtrando la lista completa de Productos (Molduras + Cuadros)
+    // que viene del ProductRepository, por lo que este archivo queda limpio de lógica de base de datos.
+
+    suspend fun insert(cuadro: Cuadro) {
+        // TODO: En el futuro, aquí llamarías a RetrofitClient.productService.createProduct(...)
     }
 
-    fun getCuadrosByCategory(category: String): Flow<List<CuadroEntity>> {
-        return cuadroDao.getCuadrosByCategory(category)
+    suspend fun delete(cuadro: Cuadro) {
+        // TODO: En el futuro, aquí llamarías a RetrofitClient.productService.deleteProduct(...)
     }
 
     suspend fun getAllCategories(): List<String> {
-        return cuadroDao.getAllCategories()
-    }
-
-    suspend fun insert(cuadro: CuadroEntity) {
-        cuadroDao.insert(cuadro)
-    }
-
-    suspend fun update(cuadro: CuadroEntity) {
-        cuadroDao.update(cuadro)
-    }
-
-    suspend fun delete(cuadro: CuadroEntity) {
-        cuadroDao.delete(cuadro)
-    }
-
-    suspend fun getCuadroById(id: Long): CuadroEntity? {
-        return cuadroDao.getCuadroById(id)
+        // Retornamos categorías estáticas o vacías, ya que la API principal se encarga de esto
+        return emptyList()
     }
 }

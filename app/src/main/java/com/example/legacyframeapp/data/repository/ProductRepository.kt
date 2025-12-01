@@ -1,48 +1,47 @@
 package com.example.legacyframeapp.data.repository
 
-import com.example.legacyframeapp.data.local.product.ProductDao
-import com.example.legacyframeapp.data.local.product.ProductEntity
-import kotlinx.coroutines.flow.Flow
+import android.util.Log
+import com.example.legacyframeapp.data.network.RetrofitClient
+// Importamos el modelo de la API (Datos crudos en español)
+import com.example.legacyframeapp.data.network.model.ProductRemote
+// Importamos el modelo del Dominio/UI (Datos limpios en inglés)
+import com.example.legacyframeapp.domain.model.Product
 
-class ProductRepository(
-    private val productDao: ProductDao
-) {
+class ProductRepository {
 
-    // Flujo de todos los productos (para la lista principal)
-    fun getAllProducts(): Flow<List<ProductEntity>> {
-        return productDao.getAllProducts()
+    suspend fun getAllProducts(): List<Product> {
+        // En Kotlin, try-catch devuelve el valor de la última línea
+        return try {
+            val response = RetrofitClient.productService.getProducts()
+
+            if (response.isSuccessful) {
+                // 1. Obtenemos la lista cruda y forzamos el tipo para evitar errores de inferencia
+                val remotes: List<ProductRemote> = response.body() ?: emptyList()
+
+                // 2. Transformamos cada 'remote' (API) en un 'Product' (UI)
+                val domainList: List<Product> = remotes.map { remote ->
+                    Product(
+                        id = remote.id,
+                        name = remote.nombre, // Ahora sí reconoce 'nombre'
+                        description = remote.descripcion ?: "",
+                        price = remote.precio.toInt(),
+                        imageUrl = remote.imagenUrl ?: "",
+                        category = remote.categoria?.nombre ?: "Sin categoría"
+                    )
+                }
+                domainList // Devolvemos la lista transformada
+            } else {
+                Log.e("ProductRepo", "Error API: ${response.code()}")
+                emptyList<Product>() // Especificamos <Product> explícitamente
+            }
+        } catch (e: Exception) {
+            Log.e("ProductRepo", "Error red: ${e.message}")
+            emptyList<Product>() // Especificamos <Product> explícitamente
+        }
     }
 
-    fun getByCategory(category: String): Flow<List<ProductEntity>> =
-        productDao.getProductsByCategory(category)
-
-    suspend fun getAllCategories(): List<String> = productDao.getAllCategories()
-
-    suspend fun count(): Int = productDao.count()
-
-    // --- Funciones de Admin ---
-
-    suspend fun insert(product: ProductEntity) {
-        productDao.insert(product)
-    }
-
-    suspend fun update(product: ProductEntity) {
-        productDao.update(product)
-    }
-
-    suspend fun delete(product: ProductEntity) {
-        productDao.delete(product)
-    }
-
-    suspend fun getProductById(id: Long): ProductEntity? {
-        return productDao.getProductById(id)
-    }
-
-    suspend fun getProductByName(name: String): ProductEntity? {
-        return productDao.getProductByName(name)
-    }
-
-    suspend fun deleteAll() {
-        productDao.deleteAll()
+    // Función auxiliar opcional para obtener por ID filtrando la lista
+    suspend fun getProductById(id: Long): Product? {
+        return getAllProducts().find { it.id == id }
     }
 }

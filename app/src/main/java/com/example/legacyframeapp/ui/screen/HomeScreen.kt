@@ -1,6 +1,5 @@
 package com.example.legacyframeapp.ui.screen
 
-
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,9 +9,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Photo
-import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -25,18 +24,16 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.legacyframeapp.R
-import com.example.legacyframeapp.data.local.product.ProductEntity
-import com.example.legacyframeapp.ui.components.AppButton
 import coil.compose.AsyncImage
-
-
+import com.example.legacyframeapp.R
+import com.example.legacyframeapp.domain.model.Product
+import com.example.legacyframeapp.ui.components.AppButton
 
 // Modelos de UI para la pantalla Home
 data class ProductHome(
-    val title: String, 
-    val price: Int, 
-    val imageResId: Int? = null, 
+    val title: String,
+    val price: Int,
+    val imageResId: Int? = null,
     val imagePath: String? = null,
     val description: String = ""
 )
@@ -50,12 +47,13 @@ fun HomeScreen(
     onGoRegister: () -> Unit,
     onGoMolduras: () -> Unit,
     onGoCuadros: () -> Unit,
-    products: List<ProductEntity>
+    products: List<Product> // <--- CAMBIO AQUÍ: Usamos Product, no ProductEntity
 ) {
     // Destacados: toma 3 productos del catálogo (los más destacados)
     val popularProducts: List<ProductHome> = products.take(3).map { p ->
-        // Mapeo de imágenes locales
-        val resId = when (p.imagePath) {
+        // Mapeo de imágenes locales (si tus datos de prueba usan estos nombres)
+        // CAMBIO: Usamos p.imageUrl en lugar de p.imagePath
+        val resId = when (p.imageUrl) {
             "moldura1" -> R.drawable.moldura1
             "moldura2" -> R.drawable.moldura2
             "moldura3" -> R.drawable.moldura3
@@ -67,13 +65,14 @@ fun HomeScreen(
             else -> null
         }
         ProductHome(
-            title = p.name, 
-            price = p.price, 
-            imageResId = resId, 
-            imagePath = p.imagePath,
+            title = p.name,
+            price = p.price,
+            imageResId = resId,
+            imagePath = p.imageUrl, // <--- CAMBIO AQUÍ: Pasamos la URL nueva
             description = p.description
         )
     }
+
     val services = listOf(
         ServiceHome("🖼️", "Enmarcación Personalizada", "Creamos marcos a medida para cualquier obra."),
         ServiceHome("🚚", "Despacho a Domicilio", "Entregamos tus cuadros directamente en tu hogar."),
@@ -104,6 +103,7 @@ fun HomeScreen(
             // Sección 1: Banner principal
             item {
                 // Imagen del header con el logo y las fotos
+                // Asegúrate de tener 'home_header' en tus drawables, si no, usa un placeholder
                 Image(
                     painter = painterResource(id = R.drawable.home_header),
                     contentDescription = "Header",
@@ -113,7 +113,7 @@ fun HomeScreen(
                     contentScale = ContentScale.Crop
                 )
             }
-        
+
             // Sección 2: Tarjeta de bienvenida y navegación a Molduras/Cuadros
             item {
                 // Tarjeta con logo, texto y botones de navegación
@@ -143,9 +143,9 @@ fun HomeScreen(
                             textAlign = TextAlign.Center,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
-                        
+
                         Spacer(modifier = Modifier.height(16.dp))
-                        
+
                         // Botones de acceso rápido a Molduras y Cuadros
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -225,7 +225,6 @@ fun HomeScreen(
                     }
                 }
             }
-            // (CTA inferior eliminado a solicitud del usuario)
         }
     }
 }
@@ -262,7 +261,7 @@ fun SectionTitle(title: String, modifier: Modifier = Modifier) {
 @Composable
 fun ProductCardHome(product: ProductHome, onClick: () -> Unit) {
     val context = LocalContext.current
-    
+
     Card(
         modifier = Modifier
             .width(200.dp)
@@ -285,13 +284,13 @@ fun ProductCardHome(product: ProductHome, onClick: () -> Unit) {
                     )
                 }
                 !product.imagePath.isNullOrEmpty() -> {
-                    // Intenta cargar desde drawable primero
+                    // Intenta cargar desde drawable primero (por nombre)
                     val drawableId = context.resources.getIdentifier(
                         product.imagePath,
                         "drawable",
                         context.packageName
                     )
-                    
+
                     if (drawableId != 0) {
                         Image(
                             painter = painterResource(id = drawableId),
@@ -303,7 +302,7 @@ fun ProductCardHome(product: ProductHome, onClick: () -> Unit) {
                             contentScale = ContentScale.Crop
                         )
                     } else {
-                        // Si no está en drawable, intenta cargar desde archivo o URL
+                        // Si no está en drawable, intenta cargar desde archivo o URL (Coil)
                         AsyncImage(
                             model = product.imagePath,
                             contentDescription = product.title,

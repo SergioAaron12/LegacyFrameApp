@@ -36,7 +36,7 @@ fun AddCuadroScreenVm(
     onNavigateBack: () -> Unit
 ) {
     val state by vm.addCuadro.collectAsStateWithLifecycle()
-    val context = LocalContext.current // Necesitamos el contexto para saveCuadro
+    val context = LocalContext.current
 
     LaunchedEffect(state.saveSuccess) {
         if (state.saveSuccess) {
@@ -69,8 +69,9 @@ fun AddCuadroScreenVm(
         onMaterialChange = { vm.onAddCuadroChange(material = it) },
         onCategoryChange = { vm.onAddCuadroChange(category = it) },
         onImageSelected = { uri -> vm.onCuadroImageSelected(uri) },
-        onSubmit = { vm.saveCuadro(context) }, // Pasa el contexto
+        onSubmit = { vm.saveCuadro(context) },
         onBack = onNavigateBack,
+        // CORRECCIÓN: Referencia a la función del ViewModel (asegúrate de haberla agregado en el Paso 1)
         createTempImageUri = vm::createTempImageUri
     )
 }
@@ -98,40 +99,39 @@ fun AddCuadroScreen(
 ) {
     var tempUri by remember { mutableStateOf<Uri?>(null) }
 
-    // --- LANZADORES (Sin cambios recientes) ---
+    // 1. Launcher para Galería (Photo Picker)
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri -> onImageSelected(uri) }
     )
+
+    // 2. Launcher para Cámara
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { success -> if (success) onImageSelected(tempUri) }
     )
-    val galleryPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                photoPickerLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
-            } else { println("Permiso de galería denegado") }
-        }
-    )
+
+    // 3. Permiso solo para la CÁMARA
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
             if (isGranted) {
-                tempUri?.let { uri -> cameraLauncher.launch(uri) }
-                    ?: println("Error: tempUri era nulo al lanzar la cámara")
-            } else { println("Permiso de cámara denegado") }
+                // Si nos dan permiso, creamos el archivo y lanzamos la cámara
+                tempUri = createTempImageUri()
+                cameraLauncher.launch(tempUri!!)
+            }
         }
     )
-    // ------------------------------------
 
-    // Acciones para los botones de imagen
-    val onSelectImageGallery = { galleryPermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES) }
+    // Acciones de los botones
+    val onSelectImageGallery = {
+        photoPickerLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
+    }
+
     val onCapturePhoto = {
-        tempUri = createTempImageUri()
+        // Primero pedimos permiso, y en el callback lanzamos la cámara
         cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
     }
 
@@ -163,15 +163,15 @@ fun AddCuadroScreen(
             // --- Campos del formulario ---
             OutlinedTextField(
                 value = title, onValueChange = onTitleChange, label = { Text("Título*") },
-                isError = titleError != null, singleLine = true, // Añadido singleLine
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next), // Añadido imeAction
+                isError = titleError != null, singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth()
             )
             if (titleError != null) { Text(titleError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall) }
 
             OutlinedTextField(
                 value = description, onValueChange = onDescriptionChange, label = { Text("Descripción") },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next), // Añadido imeAction
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth().height(100.dp)
             )
 
@@ -187,7 +187,6 @@ fun AddCuadroScreen(
                 visualTransformation = ThousandSeparatorTransformation(),
                 modifier = Modifier.fillMaxWidth()
             )
-            // --------------------------------------
             if (priceError != null) { Text(priceError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall) }
 
             OutlinedTextField(
@@ -202,7 +201,7 @@ fun AddCuadroScreen(
             )
             OutlinedTextField(
                 value = category, onValueChange = onCategoryChange, label = { Text("Categoría (ej: Paisajes)") },
-                singleLine = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done), // Último campo
+                singleLine = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 modifier = Modifier.fillMaxWidth()
             )
 

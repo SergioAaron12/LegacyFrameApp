@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.legacyframeapp.domain.model.Cuadro // <--- IMPORT NUEVO
 
 @Composable
 fun DeleteCuadroScreenVm(
@@ -46,6 +47,7 @@ fun DeleteCuadroScreenVm(
     onNavigateBack: () -> Unit
 ){
     val context = LocalContext.current
+    // 'cuadros' ahora es una lista de objetos 'Cuadro' del dominio
     val cuadros by vm.cuadros.collectAsStateWithLifecycle()
 
     var name by remember { mutableStateOf("") }
@@ -103,7 +105,7 @@ fun DeleteCuadroScreen(
     onNameChange: (String) -> Unit,
     onDeleteByName: () -> Unit,
     onClickDeleteItem: (Long) -> Unit,
-    cuadros: List<com.example.legacyframeapp.data.local.cuadro.CuadroEntity>,
+    cuadros: List<Cuadro>, // <--- CAMBIO: Usamos Cuadro en vez de CuadroEntity
     onBack: () -> Unit
 ){
     Scaffold(
@@ -147,17 +149,26 @@ fun DeleteCuadroScreen(
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(cuadros, key = { it.id }) { c ->
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(c.imagePath)
+
+                        // Resolución de imagen (URL o Local)
+                        // CAMBIO: imagePath -> imageUrl
+                        val model: Any? = if (c.imageUrl.startsWith("http")) {
+                            c.imageUrl
+                        } else {
+                            ImageRequest.Builder(LocalContext.current)
+                                .data(c.imageUrl)
                                 .crossfade(true)
-                                .build(),
+                                .build()
+                        }
+
+                        AsyncImage(
+                            model = model,
                             contentDescription = c.title,
                             modifier = Modifier.size(56.dp)
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(c.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            if (c.artist != null) {
+                            if (!c.artist.isNullOrBlank()) {
                                 Text(c.artist, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
                             }
                             Text("$" + c.price.toString(), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)

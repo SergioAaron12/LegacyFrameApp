@@ -39,6 +39,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.legacyframeapp.domain.model.Product // <--- IMPORT NUEVO
+import com.example.legacyframeapp.domain.ImageStorageHelper
 
 @Composable
 fun DeleteProductScreenVm(
@@ -46,6 +48,7 @@ fun DeleteProductScreenVm(
     onNavigateBack: () -> Unit
 ){
     val context = LocalContext.current
+    // Ahora 'products' es una lista de objetos 'Product' del dominio
     val products by vm.products.collectAsStateWithLifecycle()
 
     var name by remember { mutableStateOf("") }
@@ -103,7 +106,7 @@ fun DeleteProductScreen(
     onNameChange: (String) -> Unit,
     onDeleteByName: () -> Unit,
     onClickDeleteItem: (Long) -> Unit,
-    products: List<com.example.legacyframeapp.data.local.product.ProductEntity>,
+    products: List<Product>, // <--- CAMBIO: Usamos Product en vez de ProductEntity
     onBack: () -> Unit
 ){
     Scaffold(
@@ -147,11 +150,21 @@ fun DeleteProductScreen(
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(products, key = { it.id }) { p ->
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(p.imagePath)
+
+                        // Resolución de imagen (URL o Local)
+                        // CAMBIO: imagePath -> imageUrl
+                        val model: Any? = if (p.imageUrl.startsWith("http")) {
+                            p.imageUrl
+                        } else {
+                            // Lógica para imágenes locales o placeholders
+                            ImageRequest.Builder(LocalContext.current)
+                                .data(p.imageUrl) // Coil maneja archivos si la ruta es válida
                                 .crossfade(true)
-                                .build(),
+                                .build()
+                        }
+
+                        AsyncImage(
+                            model = model,
                             contentDescription = p.name,
                             modifier = Modifier.size(56.dp)
                         )

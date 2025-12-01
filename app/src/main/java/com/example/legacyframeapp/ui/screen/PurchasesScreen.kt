@@ -1,6 +1,5 @@
 package com.example.legacyframeapp.ui.screen
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,7 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -34,9 +32,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.legacyframeapp.R
-import com.example.legacyframeapp.data.local.cuadro.CuadroEntity
-import com.example.legacyframeapp.data.local.order.OrderEntity
-import com.example.legacyframeapp.data.local.product.ProductEntity
+// --- IMPORTS NUEVOS (Modelo de Dominio) ---
+import com.example.legacyframeapp.domain.model.Cuadro
+import com.example.legacyframeapp.domain.model.Order
+import com.example.legacyframeapp.domain.model.Product
+// ------------------------------------------
 import com.example.legacyframeapp.domain.ImageStorageHelper
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import java.text.SimpleDateFormat
@@ -48,14 +48,20 @@ fun PurchasesScreenVm(
     vm: AuthViewModel,
     onBack: () -> Unit = {}
 ) {
+    // Estos flujos ahora traen los objetos nuevos (Order, Product, Cuadro)
     val orders by vm.orders.collectAsStateWithLifecycle()
     val products by vm.products.collectAsStateWithLifecycle()
     val cuadros by vm.cuadros.collectAsStateWithLifecycle()
+
     PurchasesScreen(orders = orders, products = products, cuadros = cuadros)
 }
 
 @Composable
-fun PurchasesScreen(orders: List<OrderEntity>, products: List<ProductEntity>, cuadros: List<CuadroEntity>) {
+fun PurchasesScreen(
+    orders: List<Order>,      // Cambiado de OrderEntity a Order
+    products: List<Product>,  // Cambiado de ProductEntity a Product
+    cuadros: List<Cuadro>     // Cambiado de CuadroEntity a Cuadro
+) {
     Scaffold { inner ->
         Column(
             modifier = Modifier
@@ -65,10 +71,11 @@ fun PurchasesScreen(orders: List<OrderEntity>, products: List<ProductEntity>, cu
         ) {
             Text("Tus compras", style = MaterialTheme.typography.headlineSmall)
             if (orders.isEmpty()) {
-                Text("Aún no tienes compras registradas.")
+                Text("Aún no tienes compras registradas.", modifier = Modifier.padding(top = 16.dp))
             } else {
                 LazyColumn(modifier = Modifier.padding(top = 12.dp)) {
-                    items(orders, key = { it.id }) { order ->
+                    // Usamos 'items' pasando la lista y una key estable (id)
+                    items(items = orders, key = { it.id }) { order ->
                         OrderCard(order = order, products = products, cuadros = cuadros)
                         Spacer(Modifier.height(12.dp))
                     }
@@ -79,12 +86,17 @@ fun PurchasesScreen(orders: List<OrderEntity>, products: List<ProductEntity>, cu
 }
 
 @Composable
-private fun OrderCard(order: OrderEntity, products: List<ProductEntity>, cuadros: List<CuadroEntity>) {
+private fun OrderCard(
+    order: Order, // Cambiado a Order
+    products: List<Product>,
+    cuadros: List<Cuadro>
+) {
     val parsed = remember(order.itemsText) { parseOrderItems(order.itemsText) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -116,16 +128,18 @@ private fun OrderCard(order: OrderEntity, products: List<ProductEntity>, cuadros
 @Composable
 private fun PurchaseItemRow(
     item: ParsedOrderItem,
-    products: List<ProductEntity>,
-    cuadros: List<CuadroEntity>
+    products: List<Product>,
+    cuadros: List<Cuadro>
 ) {
     val context = LocalContext.current
     val placeholderDrawable = R.drawable.ic_launcher_foreground
 
+    // Buscamos la imagen en Productos (por name) o en Cuadros (por title)
+    // CAMBIO IMPORTANTE: Usamos .imageUrl en lugar de .imagePath
     val imagePath: String? = remember(item.name, products, cuadros) {
         val prod = products.firstOrNull { it.name.equals(item.name, ignoreCase = true) }
         val cua = cuadros.firstOrNull { it.title.equals(item.name, ignoreCase = true) }
-        prod?.imagePath ?: cua?.imagePath
+        prod?.imageUrl ?: cua?.imageUrl // <-- Aquí estaba el error
     }
 
     val imageRequest = remember(imagePath) {

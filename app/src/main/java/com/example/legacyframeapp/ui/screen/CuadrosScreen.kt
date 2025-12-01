@@ -1,6 +1,5 @@
 package com.example.legacyframeapp.ui.screen
 
-
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -12,7 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.AddShoppingCart // Icono de carrito para IconButton
+import androidx.compose.material.icons.filled.AddShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,18 +28,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.legacyframeapp.R
-import com.example.legacyframeapp.data.local.cuadro.CuadroEntity
+import com.example.legacyframeapp.domain.model.Cuadro // <--- IMPORT NUEVO
 import com.example.legacyframeapp.domain.ImageStorageHelper
 import com.example.legacyframeapp.ui.components.formatWithThousands
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
-// Pantalla de Cuadros (con ViewModel): observa lista de cuadros y estado de sesión
+// Pantalla de Cuadros (con ViewModel)
 @Composable
 fun CuadrosScreenVm(
     vm: AuthViewModel,
     onAddCuadro: () -> Unit
 ) {
-    // Lista completa de cuadros
+    // Lista completa de cuadros (traída de la API en el ViewModel)
     val cuadros by vm.cuadros.collectAsStateWithLifecycle()
     val session by vm.session.collectAsStateWithLifecycle()
 
@@ -52,14 +51,14 @@ fun CuadrosScreenVm(
     )
 }
 
-// UI de Cuadros: lista de tarjetas y FAB para añadir (solo admin)
+// UI de Cuadros
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuadrosScreen(
-    cuadros: List<CuadroEntity>,
+    cuadros: List<Cuadro>, // <--- CAMBIO: CuadroEntity -> Cuadro
     isAdmin: Boolean,
     onAddCuadro: () -> Unit,
-    onAddToCart: (CuadroEntity) -> Unit
+    onAddToCart: (Cuadro) -> Unit
 ) {
 
     Scaffold(
@@ -77,16 +76,15 @@ fun CuadrosScreen(
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(innerPadding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp), // Padding inferior por FAB
-            verticalArrangement = Arrangement.spacedBy(16.dp) // Espacio entre tarjetas
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Se eliminaron chips de filtros para simplificar la experiencia
 
             // --- Lista de Cuadros ---
             if (cuadros.isEmpty()) {
                 item {
                     Text(
-                        text = "No hay cuadros disponibles.", // Mensaje simplificado
+                        text = "No hay cuadros disponibles.",
                         modifier = Modifier.padding(top = 20.dp).fillMaxWidth(),
                         textAlign = TextAlign.Center,
                         color = Color.Gray
@@ -104,25 +102,26 @@ fun CuadrosScreen(
     }
 }
 
-// Tarjeta de Cuadro: muestra imagen, datos y botón para añadir al carrito
+// Tarjeta de Cuadro
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuadroCard(
-    cuadro: CuadroEntity,
+    cuadro: Cuadro, // <--- CAMBIO: CuadroEntity -> Cuadro
     onAddToCart: () -> Unit
 ) {
     val context = LocalContext.current
-    val placeholderDrawable = R.drawable.ic_launcher_foreground // O tu placeholder
+    val placeholderDrawable = R.drawable.ic_launcher_foreground
 
     // Resolución de imagen: URL, archivo guardado o recurso drawable
-    val imageRequest = remember(cuadro.imagePath) {
+    // CAMBIO IMPORTANTE: imagePath -> imageUrl
+    val imageRequest = remember(cuadro.imageUrl) {
         val dataToLoad: Any? = when {
-            cuadro.imagePath.isBlank() -> null
-            cuadro.imagePath.startsWith("http", ignoreCase = true) -> cuadro.imagePath
-            cuadro.imagePath.contains("_") && ImageStorageHelper.getImageFile(context, cuadro.imagePath).exists() ->
-                ImageStorageHelper.getImageFile(context, cuadro.imagePath)
+            cuadro.imageUrl.isBlank() -> null
+            cuadro.imageUrl.startsWith("http", ignoreCase = true) -> cuadro.imageUrl
+            cuadro.imageUrl.contains("_") && ImageStorageHelper.getImageFile(context, cuadro.imageUrl).exists() ->
+                ImageStorageHelper.getImageFile(context, cuadro.imageUrl)
             else -> {
-                val resourceId = context.resources.getIdentifier(cuadro.imagePath, "drawable", context.packageName)
+                val resourceId = context.resources.getIdentifier(cuadro.imageUrl, "drawable", context.packageName)
                 if (resourceId != 0) resourceId else null
             }
         }
@@ -144,7 +143,7 @@ fun CuadroCard(
                 model = imageRequest,
                 contentDescription = cuadro.title,
                 modifier = Modifier
-                    .size(90.dp) // Tamaño como en ProductCard
+                    .size(90.dp)
                     .clip(RoundedCornerShape(6.dp)),
                 contentScale = ContentScale.Crop
             )
@@ -153,26 +152,31 @@ fun CuadroCard(
 
             // Columna para el texto y botón carrito
             Column(
-                modifier = Modifier.weight(1f) // Ocupa el espacio restante
+                modifier = Modifier.weight(1f)
             ) {
                 Text(
                     text = cuadro.title,
-                    style = MaterialTheme.typography.titleMedium, // Mismo estilo que ProductCard
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                // Muestra tamaño y material
-                Text(
-                    text = listOfNotNull(
-                        cuadro.size.takeIf { it.isNotBlank() },
-                        cuadro.material.takeIf { it.isNotBlank() }
-                    ).joinToString(" / "),
-                    style = MaterialTheme.typography.bodySmall, // Estilo pequeño
-                    color = Color.Gray,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+
+                // Muestra tamaño y material (si existen en el modelo Cuadro)
+                val details = listOfNotNull(
+                    cuadro.size.takeIf { it.isNotBlank() },
+                    cuadro.material.takeIf { it.isNotBlank() }
+                ).joinToString(" / ")
+
+                if (details.isNotBlank()) {
+                    Text(
+                        text = details,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 // Mostrar artista si existe
                 if (!cuadro.artist.isNullOrBlank()) {
@@ -189,8 +193,8 @@ fun CuadroCard(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = cuadro.description,
-                    style = MaterialTheme.typography.bodySmall, // Mismo estilo que ProductCard
-                    maxLines = 2, // Limita a 2 líneas como ProductCard
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
                 Spacer(Modifier.height(8.dp))
@@ -199,22 +203,22 @@ fun CuadroCard(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween // Separa precio y botón
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     // Precio
                     Text(
                         text = "$ ${formatWithThousands(cuadro.price.toString())}",
-                        style = MaterialTheme.typography.bodyLarge, // Mismo estilo que ProductCard
+                        style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.primary
                     )
 
                     // Botón: añadir al carrito
-                    IconButton(onClick = onAddToCart, modifier = Modifier.size(36.dp)) { // Mismo tamaño
+                    IconButton(onClick = onAddToCart, modifier = Modifier.size(36.dp)) {
                         Icon(
-                            imageVector = Icons.Default.AddShoppingCart, // Mismo icono
+                            imageVector = Icons.Default.AddShoppingCart,
                             contentDescription = "Añadir al carrito",
-                            tint = MaterialTheme.colorScheme.primary // Mismo tinte
+                            tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
