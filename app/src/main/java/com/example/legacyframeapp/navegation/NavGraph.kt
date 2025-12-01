@@ -14,48 +14,30 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.legacyframeapp.ui.components.AppBottomBar
 import com.example.legacyframeapp.ui.components.AppDrawer
 import com.example.legacyframeapp.ui.components.AppTopBar
 import com.example.legacyframeapp.ui.components.loggedInDrawerItems
 import com.example.legacyframeapp.ui.components.loggedOutDrawerItems
-import com.example.legacyframeapp.ui.screen.AddCuadroScreenVm
-import com.example.legacyframeapp.ui.screen.AddProductScreenVm
-import com.example.legacyframeapp.ui.screen.AdminScreenVm
-import com.example.legacyframeapp.ui.screen.CartScreenVm
-import com.example.legacyframeapp.ui.screen.ChangeProductImageScreenVm
-import com.example.legacyframeapp.ui.screen.ContactScreen
-import com.example.legacyframeapp.ui.screen.CuadrosScreenVm
-import com.example.legacyframeapp.ui.screen.DeleteCuadroScreenVm
-import com.example.legacyframeapp.ui.screen.DeleteProductScreenVm
-import com.example.legacyframeapp.ui.screen.HomeScreen
-import com.example.legacyframeapp.ui.screen.LoginScreenVm
-import com.example.legacyframeapp.ui.screen.MoldurasScreenVm
-import com.example.legacyframeapp.ui.screen.ProfileScreenVm
-import com.example.legacyframeapp.ui.screen.PurchasesScreenVm
-import com.example.legacyframeapp.ui.screen.RegisterScreenVm
-import com.example.legacyframeapp.ui.screen.SettingsScreenVm
-import com.example.legacyframeapp.ui.screen.TermsScreen
-import com.example.legacyframeapp.ui.screen.ResetPasswordScreenVm
+import com.example.legacyframeapp.ui.screen.*
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
     authViewModel: AuthViewModel
 ) {
-    // Estados compartidos del ViewModel: sesión, carrito y productos (para Home)
+    // Estados compartidos del ViewModel
     val session by authViewModel.session.collectAsStateWithLifecycle()
     val cartItemCount by authViewModel.cartItemCount.collectAsStateWithLifecycle()
     val products by authViewModel.products.collectAsStateWithLifecycle()
 
-    // Estado y alcance del Drawer lateral
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    // Acciones de navegación reutilizables
+    // --- ACCIONES DE NAVEGACIÓN ---
     val goHome: () -> Unit = {
         navController.navigate(Route.Home.path) { launchSingleTop = true }
     }
@@ -184,7 +166,7 @@ fun AppNavGraph(
                 modifier = Modifier.padding(innerPadding)
             ) {
                 composable(Route.Splash.path) {
-                    com.example.legacyframeapp.ui.screen.SplashScreen(onFinished = goHome)
+                    SplashScreen(onFinished = goHome)
                 }
                 composable(Route.Home.path) {
                     HomeScreen(
@@ -200,7 +182,7 @@ fun AppNavGraph(
                         vm = authViewModel,
                         onGoLogin = goLogin,
                         onGoRegister = goRegister,
-                        onGoSettings = { navController.navigate(Route.Settings.path) },
+                        onGoSettings = goSettings,
                         onLogout = doLogout
                     )
                 }
@@ -238,9 +220,12 @@ fun AppNavGraph(
                         onRequireLogin = goLogin
                     )
                 }
+                // --- AQUÍ ESTABA EL ERROR 1 (Faltaba usar el VM) ---
                 composable(Route.Contact.path) {
-                    ContactScreen()
+                    ContactScreenVm(vm = authViewModel)
                 }
+                // ----------------------------------------------------
+
                 composable(Route.Settings.path) {
                     SettingsScreenVm(
                         vm = authViewModel,
@@ -252,7 +237,8 @@ fun AppNavGraph(
                             }
                         },
                         onGoTerms = { navController.navigate(Route.Terms.path) },
-                        onGoContact = { navController.navigate(Route.Contact.path) },
+                        // --- AQUÍ ESTABA EL ERROR 2 (Variable no usada) ---
+                        onGoContact = goContact, // Ahora usamos la variable
                         onGoLogin = goLogin
                     )
                 }

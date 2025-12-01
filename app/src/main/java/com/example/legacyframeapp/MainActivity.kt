@@ -21,6 +21,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.legacyframeapp.data.local.database.AppDatabase
 import com.example.legacyframeapp.data.local.storage.UserPreferences
 import com.example.legacyframeapp.data.repository.CartRepository
+import com.example.legacyframeapp.data.repository.ContactRepository
 import com.example.legacyframeapp.data.repository.CuadroRepository
 import com.example.legacyframeapp.data.repository.OrderRepository
 import com.example.legacyframeapp.data.repository.ProductRepository
@@ -60,16 +61,18 @@ fun AppRoot() {
     // UserRepository ahora usa Preferences para guardar el token y Retrofit internamente
     val userRepository = UserRepository(userPrefs)
 
-    // ProductRepository y CuadroRepository ahora usan Retrofit (sin argumentos)
+    // ProductRepository y CuadroRepository ahora usan Retrofit (sin argumentos de constructor)
     val productRepository = ProductRepository()
-    val cuadroRepository = CuadroRepository() // Asegúrate de tener este repo actualizado también
+    val cuadroRepository = CuadroRepository()
 
-    // CartRepository sigue usando el DAO local
+    // CartRepository sigue usando el DAO local (Room)
     val cartRepository = CartRepository(cartDao)
 
     // OrderRepository usa Retrofit (sin argumentos)
-    // Nota: Si antes recibía un DAO, asegúrate de haber actualizado la clase OrderRepository
     val orderRepository = OrderRepository()
+
+    // ContactRepository usa Retrofit (sin argumentos)
+    val contactRepository = ContactRepository()
 
     // 4. Crear el ViewModel usando la Factory
     val authViewModel: AuthViewModel = viewModel(
@@ -80,24 +83,25 @@ fun AppRoot() {
             cuadroRepository = cuadroRepository,
             cartRepository = cartRepository,
             userPreferences = userPrefs,
-            orderRepository = orderRepository
+            orderRepository = orderRepository,
+            contactRepository = contactRepository
         )
     )
 
     // 5. Configurar Navegación y Tema
     val navController = rememberNavController()
 
-    // Observar estados de preferencias para el tema
+    // Observar estados de preferencias para el tema dinámico
     val darkMode by authViewModel.darkMode.collectAsStateWithLifecycle()
     val themeMode by authViewModel.themeMode.collectAsStateWithLifecycle()
     val accentHex by authViewModel.accentColor.collectAsStateWithLifecycle()
     val fontScale by authViewModel.fontScale.collectAsStateWithLifecycle()
 
-    // Resolver si usar tema oscuro o claro
+    // Resolver si usar tema oscuro o claro según configuración
     val resolvedDark = when (themeMode) {
         "light" -> false
         "dark" -> true
-        else -> darkMode // "system" usa la configuración del sistema
+        else -> darkMode // "system" usa la configuración del sistema (darkMode)
     }
 
     UINavegacionTheme(
@@ -106,7 +110,7 @@ fun AppRoot() {
         fontScale = fontScale
     ) {
         Surface(color = MaterialTheme.colorScheme.background) {
-            // Efecto secundario: Precargar imágenes si es necesario (opcional)
+            // Efecto secundario: Precargar imágenes al iniciar (opcional)
             LaunchedEffect(Unit) {
                 authViewModel.prefetchProductImages(context.applicationContext)
             }

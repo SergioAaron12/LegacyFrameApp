@@ -13,11 +13,11 @@ import com.example.legacyframeapp.data.network.model.OrderDetail
 import com.example.legacyframeapp.data.network.model.OrderRequest
 import com.example.legacyframeapp.data.network.model.RegisterRequest
 import com.example.legacyframeapp.data.repository.CartRepository
+import com.example.legacyframeapp.data.repository.ContactRepository
 import com.example.legacyframeapp.data.repository.CuadroRepository
 import com.example.legacyframeapp.data.repository.OrderRepository
 import com.example.legacyframeapp.data.repository.ProductRepository
 import com.example.legacyframeapp.data.repository.UserRepository
-import com.example.legacyframeapp.domain.ImageStorageHelper
 import com.example.legacyframeapp.domain.model.Cuadro
 import com.example.legacyframeapp.domain.model.Order
 import com.example.legacyframeapp.domain.model.Product
@@ -31,12 +31,12 @@ import androidx.core.content.ContextCompat
 import android.content.pm.PackageManager
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.FileProvider // Importante para createTempImageUri
+import androidx.core.content.FileProvider
 import java.io.File
 import java.text.NumberFormat
 import java.util.Locale
 
-// --- ESTADOS DE UI (Se mantienen igual para no romper tus pantallas) ---
+// --- ESTADOS DE UI (Data Classes) ---
 
 data class LoginUiState(
     val email: String = "",
@@ -75,7 +75,7 @@ data class RegisterUiState(
 data class SessionUiState(
     val isLoggedIn: Boolean = false,
     val isAdmin: Boolean = false,
-    val currentUser: User? = null // Usamos el modelo User del dominio
+    val currentUser: User? = null
 )
 
 data class ResetPasswordUiState(
@@ -129,24 +129,21 @@ class AuthViewModel(
     private val cuadroRepository: CuadroRepository,
     private val cartRepository: CartRepository,
     private val userPreferences: UserPreferences,
-    private val orderRepository: OrderRepository?
+    private val orderRepository: OrderRepository?,
+    private val contactRepository: ContactRepository
 ) : AndroidViewModel(application) {
 
     // --- ESTADO DE SESIÓN ---
     val session = userPreferences.isLoggedIn.map { loggedIn ->
-        // TODO: En una implementación real, deberías obtener los datos del usuario desde la API (/auth/perfil) usando el token
-        // Por ahora, creamos un usuario placeholder si está logueado para que ProfileScreen no falle
-        val user = if (loggedIn) User(id=1, nombre="Usuario", email="usuario@legacy.cl") else null
+        // Usuario temporal para la UI si está logueado
+        val user = if (loggedIn) User(id = 1, nombre = "Usuario", email = "usuario@legacy.cl") else null
         SessionUiState(isLoggedIn = loggedIn, isAdmin = true, currentUser = user)
     }.stateIn(viewModelScope, SharingStarted.Lazily, SessionUiState())
 
-    // --- CATÁLOGO (Usando Modelos de Dominio) ---
-
-    // Lista de Productos (Molduras) traída de la API
+    // --- CATÁLOGO (Desde API) ---
     private val _products = MutableStateFlow<List<Product>>(emptyList())
     val products = _products.asStateFlow()
 
-    // Lista de Cuadros traída de la API (filtrada)
     private val _cuadros = MutableStateFlow<List<Cuadro>>(emptyList())
     val cuadros = _cuadros.asStateFlow()
 
@@ -185,30 +182,28 @@ class AuthViewModel(
     private val _addCuadro = MutableStateFlow(AddCuadroUiState())
     val addCuadro = _addCuadro.asStateFlow()
 
-    // Historial de Compras (Desde API, usando modelo Order de Dominio)
+    // Historial de Compras (Desde API)
     val orders: StateFlow<List<Order>> =
         (orderRepository?.getAll() ?: flowOf(emptyList()))
             .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
-        // Cargar catálogo desde la nube al iniciar
+        // Cargar catálogo al iniciar
         fetchCatalog()
     }
 
     // ========================================================================
-    // 1. CARGA DE DATOS (API)
+    // 1. CARGA DE DATOS (API PRODUCTOS)
     // ========================================================================
 
     private fun fetchCatalog() {
         viewModelScope.launch(Dispatchers.IO) {
-            // Llamamos al repositorio que usa Retrofit y devuelve List<Product>
+            // Obtenemos lista unificada de la API
             val apiList = productRepository.getAllProducts()
 
-            // Filtramos en memoria. Asumimos que la API devuelve todo y distinguimos por categoría.
-            // Si la categoría NO es "cuadros", lo tratamos como Moldura/Producto general.
+            // Separamos: Productos (Molduras) vs Cuadros
             _products.value = apiList.filter { !it.category.equals("cuadros", ignoreCase = true) }
 
-            // Si la categoría ES "cuadros", lo mapeamos al modelo Cuadro para esa pantalla.
             _cuadros.value = apiList.filter { it.category.equals("cuadros", ignoreCase = true) }
                 .map { prod ->
                     Cuadro(
@@ -218,7 +213,6 @@ class AuthViewModel(
                         price = prod.price,
                         imageUrl = prod.imageUrl,
                         category = prod.category,
-                        // Valores por defecto ya que la API genérica no tiene 'size'/'material'
                         size = "Estándar",
                         material = "Marco de madera",
                         artist = "Legacy Frames"
@@ -227,12 +221,10 @@ class AuthViewModel(
         }
     }
 
-    fun prefetchProductImages(context: Context) {
-        // Opcional: Implementar lógica de pre-calentamiento de caché con Coil
-    }
+    fun prefetchProductImages(context: Context) { /* Opcional */ }
 
     // ========================================================================
-    // 2. LOGIN Y REGISTRO (API)
+    // 2. LOGIN Y REGISTRO (API AUTH)
     // ========================================================================
 
     fun onLoginEmailChange(v: String) { _login.update { it.copy(email = v) } }
@@ -258,7 +250,6 @@ class AuthViewModel(
 
     fun submitRegister() {
         val s = _register.value
-        // Validaciones básicas
         if (s.pass != s.confirm) {
             _register.update { it.copy(confirmError = "Las contraseñas no coinciden") }; return
         }
@@ -328,14 +319,13 @@ class AuthViewModel(
     }
 
     // ========================================================================
-    // 4. CREAR PEDIDO (API)
+    // 4. CREAR PEDIDO (API PEDIDOS)
     // ========================================================================
 
     fun recordOrder(items: List<CartItemEntity>, total: Int) {
         if (orderRepository == null) return
 
         viewModelScope.launch(Dispatchers.IO) {
-            // Mapeamos los items del carrito local al formato que espera la API
             val detalles = items.map {
                 OrderDetail(
                     productoId = it.refId,
@@ -345,7 +335,7 @@ class AuthViewModel(
                 )
             }
             val request = OrderRequest(items = detalles)
-            val emailUser = "usuario@test.com" // TODO: Obtener email real de UserPreferences
+            val emailUser = "usuario@test.com" // TODO: Usar email real
 
             val result = orderRepository.createOrder(emailUser, request)
             if (result.isSuccess) {
@@ -371,35 +361,43 @@ class AuthViewModel(
     }
 
     // ========================================================================
-    // 5. FUNCIONES ADMIN Y UI (Placeholders para compatibilidad)
+    // 5. CONTACTO (API CONTACTO)
     // ========================================================================
 
-    // Add Product UI
+    fun sendContactMessage(nombre: String, email: String, mensaje: String, onResult: (Boolean) -> Unit) {
+        viewModelScope.launch {
+            val result = contactRepository.sendMessage(nombre, email, mensaje)
+            onResult(result.isSuccess)
+        }
+    }
+
+    // ========================================================================
+    // 6. ADMIN Y OTROS (Placeholders)
+    // ========================================================================
+
     fun onAddProductChange(name: String = "", description: String = "", price: String = "") {
         _addProduct.update { it.copy(name = name, description = description, price = price, canSubmit = true) }
     }
     fun onImageSelected(uri: Uri?) { _addProduct.update { it.copy(imageUri = uri) } }
     fun saveProduct(context: Context) {
-        Toast.makeText(context, "API de Creación no implementada aún", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "API POST no implementada", Toast.LENGTH_SHORT).show()
         _addProduct.update { it.copy(saveSuccess = true) }
     }
     fun clearAddProductState() { _addProduct.value = AddProductUiState() }
 
-    // Add Cuadro UI
     fun onAddCuadroChange(title: String="", description: String="", price: String="", size: String="", material: String="", category: String="", artist: String?="") {
         _addCuadro.update { it.copy(title=title, description=description, price=price, canSubmit=true) }
     }
     fun onCuadroImageSelected(uri: Uri?) { _addCuadro.update { it.copy(imageUri = uri) } }
     fun saveCuadro(context: Context) {
-        Toast.makeText(context, "API de Creación no implementada aún", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "API POST no implementada", Toast.LENGTH_SHORT).show()
         _addCuadro.update { it.copy(saveSuccess = true) }
     }
     fun clearAddCuadroState() { _addCuadro.value = AddCuadroUiState() }
 
-    // Admin Actions (Corregido: Usan los modelos de dominio Product/Cuadro)
+    // Admin Actions (Usan modelos de dominio)
     fun deleteProduct(p: Product) { /* TODO: API DELETE */ }
     fun deleteCuadro(c: Cuadro) { /* TODO: API DELETE */ }
-
     fun updateProductImage(ctx: Context, id: Long, uri: Uri, onDone: (Boolean, String?) -> Unit) { onDone(true, null) }
 
     // Reset Password UI
@@ -421,7 +419,7 @@ class AuthViewModel(
     suspend fun setNotifTracking(b: Boolean) = userPreferences.setNotifTracking(b)
     suspend fun setNotifCart(b: Boolean) = userPreferences.setNotifCart(b)
 
-    // --- Función para crear URI temporal para la cámara ---
+    // --- FUNCIÓN PARA CÁMARA (NUEVA) ---
     fun createTempImageUri(): Uri {
         val context = getApplication<Application>().applicationContext
         val imageDir = File(context.cacheDir, "images").apply { mkdirs() }
