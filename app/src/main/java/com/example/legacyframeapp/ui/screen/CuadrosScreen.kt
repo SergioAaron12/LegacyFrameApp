@@ -26,20 +26,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.example.legacyframeapp.R
-import com.example.legacyframeapp.domain.model.Cuadro // <--- IMPORT NUEVO
-import com.example.legacyframeapp.domain.ImageStorageHelper
+import com.example.legacyframeapp.domain.model.Cuadro
 import com.example.legacyframeapp.ui.components.formatWithThousands
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
-// Pantalla de Cuadros (con ViewModel)
 @Composable
 fun CuadrosScreenVm(
     vm: AuthViewModel,
     onAddCuadro: () -> Unit
 ) {
-    // Lista completa de cuadros (traída de la API en el ViewModel)
     val cuadros by vm.cuadros.collectAsStateWithLifecycle()
     val session by vm.session.collectAsStateWithLifecycle()
 
@@ -51,16 +47,14 @@ fun CuadrosScreenVm(
     )
 }
 
-// UI de Cuadros
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuadrosScreen(
-    cuadros: List<Cuadro>, // <--- CAMBIO: CuadroEntity -> Cuadro
+    cuadros: List<Cuadro>,
     isAdmin: Boolean,
     onAddCuadro: () -> Unit,
     onAddToCart: (Cuadro) -> Unit
 ) {
-
     Scaffold(
         floatingActionButton = {
             AnimatedVisibility(
@@ -79,8 +73,6 @@ fun CuadrosScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-
-            // --- Lista de Cuadros ---
             if (cuadros.isEmpty()) {
                 item {
                     Text(
@@ -102,31 +94,24 @@ fun CuadrosScreen(
     }
 }
 
-// Tarjeta de Cuadro
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuadroCard(
-    cuadro: Cuadro, // <--- CAMBIO: CuadroEntity -> Cuadro
+    cuadro: Cuadro,
     onAddToCart: () -> Unit
 ) {
     val context = LocalContext.current
     val placeholderDrawable = R.drawable.ic_launcher_foreground
 
-    // Resolución de imagen: URL, archivo guardado o recurso drawable
-    // CAMBIO IMPORTANTE: imagePath -> imageUrl
-    val imageRequest = remember(cuadro.imageUrl) {
-        val dataToLoad: Any? = when {
-            cuadro.imageUrl.isBlank() -> null
-            cuadro.imageUrl.startsWith("http", ignoreCase = true) -> cuadro.imageUrl
-            cuadro.imageUrl.contains("_") && ImageStorageHelper.getImageFile(context, cuadro.imageUrl).exists() ->
-                ImageStorageHelper.getImageFile(context, cuadro.imageUrl)
+    // --- LÓGICA INTELIGENTE DE IMAGEN ---
+    val model: Any? = remember(cuadro.imageUrl) {
+        when {
+            cuadro.imageUrl.startsWith("http") -> cuadro.imageUrl
             else -> {
-                val resourceId = context.resources.getIdentifier(cuadro.imageUrl, "drawable", context.packageName)
-                if (resourceId != 0) resourceId else null
+                val resId = context.resources.getIdentifier(cuadro.imageUrl, "drawable", context.packageName)
+                if (resId != 0) resId else null
             }
         }
-        ImageRequest.Builder(context)
-            .data(dataToLoad).placeholder(placeholderDrawable).error(placeholderDrawable).crossfade(true).build()
     }
 
     Card(
@@ -138,22 +123,20 @@ fun CuadroCard(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Imagen a la izquierda
             AsyncImage(
-                model = imageRequest,
+                model = model,
                 contentDescription = cuadro.title,
                 modifier = Modifier
                     .size(90.dp)
                     .clip(RoundedCornerShape(6.dp)),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                placeholder = null, // Opcional: placeholderDrawable
+                error = null        // Opcional: placeholderDrawable
             )
 
             Spacer(Modifier.width(16.dp))
 
-            // Columna para el texto y botón carrito
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = cuadro.title,
                     style = MaterialTheme.typography.titleMedium,
@@ -162,7 +145,6 @@ fun CuadroCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                // Muestra tamaño y material (si existen en el modelo Cuadro)
                 val details = listOfNotNull(
                     cuadro.size.takeIf { it.isNotBlank() },
                     cuadro.material.takeIf { it.isNotBlank() }
@@ -178,7 +160,6 @@ fun CuadroCard(
                     )
                 }
 
-                // Mostrar artista si existe
                 if (!cuadro.artist.isNullOrBlank()) {
                     Text(
                         text = "Autor: ${cuadro.artist}",
@@ -199,13 +180,11 @@ fun CuadroCard(
                 )
                 Spacer(Modifier.height(8.dp))
 
-                // Fila inferior SOLO para Precio y Botón Carrito
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Precio
                     Text(
                         text = "$ ${formatWithThousands(cuadro.price.toString())}",
                         style = MaterialTheme.typography.bodyLarge,
@@ -213,7 +192,6 @@ fun CuadroCard(
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    // Botón: añadir al carrito
                     IconButton(onClick = onAddToCart, modifier = Modifier.size(36.dp)) {
                         Icon(
                             imageVector = Icons.Default.AddShoppingCart,

@@ -10,6 +10,8 @@ import com.example.legacyframeapp.R
 import com.example.legacyframeapp.data.local.cart.CartItemEntity
 import com.example.legacyframeapp.data.local.storage.UserPreferences
 import com.example.legacyframeapp.data.network.RetrofitClient
+import com.example.legacyframeapp.data.network.model.CategoryIdRequest
+import com.example.legacyframeapp.data.network.model.CreateProductRequest
 import com.example.legacyframeapp.data.network.model.OrderDetail
 import com.example.legacyframeapp.data.network.model.OrderRequest
 import com.example.legacyframeapp.data.network.model.RegisterRequest
@@ -38,7 +40,9 @@ import java.io.File
 import java.text.NumberFormat
 import java.util.Locale
 
-// --- ESTADOS DE UI ---
+// =================================================================================
+// CLASES DE ESTADO (UI STATES)
+// =================================================================================
 
 data class LoginUiState(
     val email: String = "",
@@ -124,6 +128,10 @@ data class AddCuadroUiState(
     val errorMsg: String? = null
 )
 
+// =================================================================================
+// VIEW MODEL
+// =================================================================================
+
 class AuthViewModel(
     application: Application,
     private val userRepository: UserRepository,
@@ -136,29 +144,31 @@ class AuthViewModel(
 ) : AndroidViewModel(application) {
 
     // --- ESTADO DE SESIÓN ---
-    val session = userPreferences.isLoggedIn.map { loggedIn ->
-        val user = if (loggedIn) User(id = 1, nombre = "Usuario", email = "usuario@legacy.cl") else null
-        SessionUiState(isLoggedIn = loggedIn, isAdmin = true, currentUser = user)
+    private val _isAdminSession = MutableStateFlow(false)
+
+    val session = combine(userPreferences.isLoggedIn, _isAdminSession) { loggedIn, isAdmin ->
+        val user = if (loggedIn) User(id = 1, nombre = "Usuario", email = "user@legacy.cl") else null
+        SessionUiState(isLoggedIn = loggedIn, isAdmin = isAdmin, currentUser = user)
     }.stateIn(viewModelScope, SharingStarted.Lazily, SessionUiState())
 
-    // --- CATÁLOGO ---
+    // --- DATOS DE LA API ---
     private val _products = MutableStateFlow<List<Product>>(emptyList())
     val products = _products.asStateFlow()
 
     private val _cuadros = MutableStateFlow<List<Cuadro>>(emptyList())
     val cuadros = _cuadros.asStateFlow()
 
-    // --- API EXTERNA (Dólar) ---
+    private val _orders = MutableStateFlow<List<Order>>(emptyList())
+    val orders = _orders.asStateFlow()
+
     private val _dolarValue = MutableStateFlow<Double?>(null)
     val dolarValue = _dolarValue.asStateFlow()
 
-    // --- CARRITO ---
+    // --- CARRITO (LOCAL) ---
     val cartItems: StateFlow<List<CartItemEntity>> = cartRepository.items()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-
     val cartTotal: StateFlow<Int> = cartRepository.total()
         .stateIn(viewModelScope, SharingStarted.Lazily, 0)
-
     val cartItemCount: StateFlow<Int> = cartRepository.count()
         .stateIn(viewModelScope, SharingStarted.Lazily, 0)
 
@@ -171,7 +181,7 @@ class AuthViewModel(
     val notifTracking = userPreferences.notifTracking.stateIn(viewModelScope, SharingStarted.Lazily, true)
     val notifCart = userPreferences.notifCart.stateIn(viewModelScope, SharingStarted.Lazily, true)
 
-    // --- ESTADOS DE PANTALLAS ---
+    // --- UI STATES ---
     private val _login = MutableStateFlow(LoginUiState())
     val login = _login.asStateFlow()
 
@@ -187,257 +197,245 @@ class AuthViewModel(
     private val _addCuadro = MutableStateFlow(AddCuadroUiState())
     val addCuadro = _addCuadro.asStateFlow()
 
-    val orders: StateFlow<List<Order>> =
-        (orderRepository?.getAll() ?: flowOf(emptyList()))
-            .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
-
     init {
         fetchCatalog()
         fetchDolarValue()
+        fetchOrders()
     }
 
-    // ========================================================================
-    // 1. CARGA DE DATOS
-    // ========================================================================
+    // --- FUNCIONES DE CARGA ---
 
     private fun fetchCatalog() {
-        // CORRECCIÓN: Eliminado Dispatchers.IO para facilitar el testing
-        // Retrofit ya gestiona el hilo de fondo internamente.
         viewModelScope.launch {
-            val apiList = productRepository.getAllProducts()
-
-            _products.value = apiList.filter { !it.category.equals("cuadros", ignoreCase = true) }
-
-            _cuadros.value = apiList.filter { it.category.equals("cuadros", ignoreCase = true) }
-                .map { prod ->
-                    Cuadro(
-                        id = prod.id,
-                        title = prod.name,
-                        description = prod.description,
-                        price = prod.price,
-                        imageUrl = prod.imageUrl,
-                        category = prod.category,
-                        size = "Estándar",
-                        material = "Marco de madera",
-                        artist = "Legacy Frames"
-                    )
-                }
+            try {
+                val apiList = productRepository.getAllProducts()
+                _products.value = apiList.filter { !it.category.equals("cuadros", ignoreCase = true) }
+                _cuadros.value = apiList.filter { it.category.equals("cuadros", ignoreCase = true) }
+                    .map { prod ->
+                        Cuadro(
+                            id = prod.id,
+                            title = prod.name,
+                            description = prod.description,
+                            price = prod.price,
+                            imageUrl = prod.imageUrl,
+                            category = prod.category
+                        )
+                    }
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
-    // ========================================================================
-    // 2. API EXTERNA (INDICADORES)
-    // ========================================================================
+    private fun fetchOrders() {
+        if (orderRepository == null) return
+        viewModelScope.launch {
+            val email = "usuario@test.com" // TODO: Usar email real de sesión
+            val historial = orderRepository.getMyOrders(email)
+            _orders.value = historial
+        }
+    }
 
     private fun fetchDolarValue() {
-        // CORRECCIÓN: Eliminado Dispatchers.IO para testing
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.externalService.getIndicadores()
-                if (response.isSuccessful && response.body() != null) {
-                    val valor = response.body()!!.dolar.valor
-                    _dolarValue.value = valor
+                if (response.isSuccessful) {
+                    _dolarValue.value = response.body()?.dolar?.valor
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
     fun prefetchProductImages(context: Context) { /* Opcional */ }
 
-    // ========================================================================
-    // 3. LOGIN Y REGISTRO
-    // ========================================================================
+    // --- LOGIN ---
 
     fun onLoginEmailChange(v: String) { _login.update { it.copy(email = v) } }
     fun onLoginPassChange(v: String) { _login.update { it.copy(pass = v, canSubmit = v.isNotBlank()) } }
 
     fun submitLogin() {
         val s = _login.value
-        if (s.email.isBlank() || s.pass.isBlank()) return
-
         _login.update { it.copy(isSubmitting = true, errorMsg = null) }
 
         viewModelScope.launch {
             val result = userRepository.login(s.email, s.pass)
 
-            // Guardamos sesión si es exitoso
             if (result.isSuccess) {
                 userPreferences.setLoggedIn(true)
+                if (s.email.lowercase().contains("admin")) {
+                    _isAdminSession.value = true
+                } else {
+                    _isAdminSession.value = false
+                }
+                fetchOrders() // Cargar historial
             }
 
             _login.update { state ->
-                if (result.isSuccess) {
-                    state.copy(success = true, isSubmitting = false)
-                } else {
-                    state.copy(success = false, isSubmitting = false, errorMsg = result.exceptionOrNull()?.message ?: "Error Login")
-                }
+                if (result.isSuccess) state.copy(success = true, isSubmitting = false)
+                else state.copy(success = false, isSubmitting = false, errorMsg = result.exceptionOrNull()?.message)
             }
         }
+    }
+
+    // --- REGISTRO (VALIDACIONES COMPLETAS) ---
+
+    fun onRegisterNombreChange(v: String) {
+        val err = validateNameLettersOnly(v)
+        _register.update { s -> s.copy(nombre = v, nombreError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+    fun onRegisterApellidoChange(v: String) {
+        val err = validateApellido(v)
+        _register.update { s -> s.copy(apellido = v, apellidoError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+    fun onRegisterRutChange(v: String) {
+        val err = validateRut(v)
+        _register.update { s -> s.copy(rut = v, rutError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+    fun onRegisterDvChange(v: String) {
+        val err = validateDv(v, _register.value.rut)
+        _register.update { s -> s.copy(dv = v, dvError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+    fun onRegisterEmailChange(v: String) {
+        val err = validateEmail(v)
+        _register.update { s -> s.copy(email = v, emailError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+    fun onRegisterPhoneChange(v: String) {
+        val err = validatePhoneDigitsOnly(v)
+        _register.update { s -> s.copy(phone = v, phoneError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+    fun onRegisterPassChange(v: String) {
+        val err = validateStrongPassword(v)
+        _register.update { s -> s.copy(pass = v, passError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+    fun onRegisterConfirmChange(v: String) {
+        val err = validateConfirm(_register.value.pass, v)
+        _register.update { s -> s.copy(confirm = v, confirmError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+
+    private fun checkRegisterCanSubmit(s: RegisterUiState): Boolean {
+        return s.nombreError == null && s.apellidoError == null &&
+                s.rutError == null && s.dvError == null &&
+                s.emailError == null && s.phoneError == null &&
+                s.passError == null && s.confirmError == null &&
+                s.nombre.isNotBlank() && s.rut.isNotBlank() &&
+                s.email.isNotBlank() && s.pass.isNotBlank()
     }
 
     fun submitRegister() {
         val s = _register.value
-        if (s.pass != s.confirm) {
-            _register.update { it.copy(confirmError = "Las contraseñas no coinciden") }; return
-        }
-
-        _register.update { it.copy(isSubmitting = true, errorMsg = null) }
-
+        _register.update { it.copy(isSubmitting = true) }
         viewModelScope.launch {
-            val request = RegisterRequest(
-                nombre = s.nombre,
-                apellido = s.apellido,
-                email = s.email,
-                password = s.pass,
-                confirmPassword = s.confirm,
-                rut = s.rut,
-                dv = s.dv,
-                telefono = s.phone
-            )
-
-            val result = userRepository.register(request)
+            val req = RegisterRequest(s.nombre, s.apellido, s.email, s.pass, s.confirm, s.rut, s.dv, s.phone)
+            val res = userRepository.register(req)
             _register.update {
-                if (result.isSuccess) it.copy(success = true, isSubmitting = false)
-                else it.copy(success = false, isSubmitting = false, errorMsg = result.exceptionOrNull()?.message)
+                if (res.isSuccess) it.copy(success = true, isSubmitting = false)
+                else it.copy(success = false, isSubmitting = false, errorMsg = res.exceptionOrNull()?.message)
             }
         }
     }
 
-    fun clearLoginResult() { _login.value = LoginUiState() }
-    fun clearRegisterResult() { _register.value = RegisterUiState() }
-    fun logout() { viewModelScope.launch { userRepository.logout() } }
+    // --- CARRITO ---
+    fun addProductToCart(p: Product) { viewModelScope.launch { cartRepository.addOrIncrement("product", p.id, p.name, p.price, p.imageUrl) } }
+    fun addCuadroToCart(c: Cuadro) { viewModelScope.launch { cartRepository.addOrIncrement("cuadro", c.id, c.title, c.price, c.imageUrl) } }
+    fun updateCartQuantity(i: CartItemEntity, q: Int) { viewModelScope.launch { cartRepository.updateQuantity(i, q) } }
+    fun removeFromCart(i: CartItemEntity) { viewModelScope.launch { cartRepository.remove(i) } }
+    fun clearCart() { viewModelScope.launch { cartRepository.clear() } }
 
-    fun onRegisterNombreChange(v: String) { _register.update { it.copy(nombre = v) } }
-    fun onRegisterApellidoChange(v: String) { _register.update { it.copy(apellido = v) } }
-    fun onRegisterRutChange(v: String) { _register.update { it.copy(rut = v) } }
-    fun onRegisterDvChange(v: String) { _register.update { it.copy(dv = v) } }
-    fun onRegisterEmailChange(v: String) { _register.update { it.copy(email = v) } }
-    fun onRegisterPhoneChange(v: String) { _register.update { it.copy(phone = v) } }
-    fun onRegisterPassChange(v: String) { _register.update { it.copy(pass = v) } }
-    fun onRegisterConfirmChange(v: String) { _register.update { it.copy(confirm = v) } }
-
-    // ========================================================================
-    // 4. CARRITO (LOCAL)
-    // ========================================================================
-
-    fun addProductToCart(p: Product) {
-        viewModelScope.launch {
-            cartRepository.addOrIncrement("product", p.id, p.name, p.price, p.imageUrl)
-        }
-    }
-
-    fun addCuadroToCart(c: Cuadro) {
-        viewModelScope.launch {
-            cartRepository.addOrIncrement("cuadro", c.id, c.title, c.price, c.imageUrl)
-        }
-    }
-
-    fun updateCartQuantity(item: CartItemEntity, qty: Int) {
-        viewModelScope.launch { cartRepository.updateQuantity(item, qty) }
-    }
-
-    fun removeFromCart(item: CartItemEntity) {
-        viewModelScope.launch { cartRepository.remove(item) }
-    }
-
-    fun clearCart() {
-        viewModelScope.launch { cartRepository.clear() }
-    }
-
-    // ========================================================================
-    // 5. PEDIDOS (API)
-    // ========================================================================
-
+    // --- PEDIDOS ---
     fun recordOrder(items: List<CartItemEntity>, total: Int) {
         if (orderRepository == null) return
-
-        // CORRECCIÓN: Eliminado Dispatchers.IO para testing
-        // Se asume que OrderRepository maneja el hilo con withContext
         viewModelScope.launch {
-            val detalles = items.map {
-                OrderDetail(
-                    productoId = it.refId,
-                    nombreProducto = it.name,
-                    cantidad = it.quantity,
-                    precioUnitario = it.price.toDouble()
-                )
-            }
-            val request = OrderRequest(items = detalles)
-            val emailUser = "usuario@test.com"
-
-            val result = orderRepository.createOrder(emailUser, request)
-            if (result.isSuccess) {
+            val detalles = items.map { OrderDetail(it.refId, it.name, it.quantity, it.price.toDouble()) }
+            val email = "usuario@test.com"
+            val res = orderRepository.createOrder(email, OrderRequest(detalles))
+            if (res.isSuccess) {
                 clearCart()
+                fetchOrders()
             }
         }
     }
 
     fun showPurchaseNotification() {
         val context = getApplication<Application>().applicationContext
-        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
-
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        }
         val builder = NotificationCompat.Builder(context, "purchase_notifications")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("¡Compra Exitosa!")
-            .setContentText("Tu pedido ha sido registrado correctamente.")
+            .setContentText("Tu pedido ha sido registrado.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
-
-        with(NotificationManagerCompat.from(context)) {
-            notify(System.currentTimeMillis().toInt(), builder.build())
-        }
+        with(NotificationManagerCompat.from(context)) { notify(System.currentTimeMillis().toInt(), builder.build()) }
     }
 
-    // ========================================================================
-    // 6. CONTACTO (API)
-    // ========================================================================
-
-    fun sendContactMessage(nombre: String, email: String, mensaje: String, onResult: (Boolean) -> Unit) {
-        viewModelScope.launch {
-            val result = contactRepository.sendMessage(nombre, email, mensaje)
-            onResult(result.isSuccess)
-        }
+    // --- CONTACTO ---
+    fun sendContactMessage(n: String, e: String, m: String, res: (Boolean) -> Unit) {
+        viewModelScope.launch { res(contactRepository.sendMessage(n, e, m).isSuccess) }
     }
 
-    // ========================================================================
-    // 7. ADMIN Y OTROS
-    // ========================================================================
-
-    fun onAddProductChange(name: String = "", description: String = "", price: String = "") {
-        _addProduct.update { it.copy(name = name, description = description, price = price, canSubmit = true) }
+    // --- ADMIN (CREAR) ---
+    fun onAddProductChange(name: String? = null, description: String? = null, price: String? = null) {
+        _addProduct.update { it.copy(name = name ?: it.name, description = description ?: it.description, price = price ?: it.price, canSubmit = true) }
     }
     fun onImageSelected(uri: Uri?) { _addProduct.update { it.copy(imageUri = uri) } }
-    fun saveProduct(context: Context) {
-        Toast.makeText(context, "API POST no implementada", Toast.LENGTH_SHORT).show()
-        _addProduct.update { it.copy(saveSuccess = true) }
+
+    fun saveProduct(ctx: Context) {
+        val s = _addProduct.value
+        _addProduct.update { it.copy(isSaving = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            val req = CreateProductRequest(s.name, s.description, s.price.toDoubleOrNull()?:0.0, 10, "/assets/mordura1.png", CategoryIdRequest(1))
+            val ok = productRepository.createProduct(req)
+            withContext(Dispatchers.Main) {
+                _addProduct.update { it.copy(isSaving = false, saveSuccess = ok) }
+                if (ok) fetchCatalog() else Toast.makeText(ctx, "Error al crear", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
     fun clearAddProductState() { _addProduct.value = AddProductUiState() }
 
-    fun onAddCuadroChange(title: String="", description: String="", price: String="", size: String="", material: String="", category: String="", artist: String?="") {
-        _addCuadro.update { it.copy(title=title, description=description, price=price, canSubmit=true) }
+    fun onAddCuadroChange(title: String?=null, description: String?=null, price: String?=null, size: String?=null, material: String?=null, category: String?=null, artist: String?=null) {
+        _addCuadro.update { it.copy(title=title?:it.title, description=description?:it.description, price=price?:it.price, size=size?:it.size, material=material?:it.material, category=category?:it.category, artist=artist?:it.artist, canSubmit=true) }
     }
     fun onCuadroImageSelected(uri: Uri?) { _addCuadro.update { it.copy(imageUri = uri) } }
-    fun saveCuadro(context: Context) {
-        Toast.makeText(context, "API POST no implementada", Toast.LENGTH_SHORT).show()
-        _addCuadro.update { it.copy(saveSuccess = true) }
+
+    fun saveCuadro(ctx: Context) {
+        val s = _addCuadro.value
+        _addCuadro.update { it.copy(isSaving = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            val desc = "${s.description} | ${s.size} | ${s.material}"
+            val req = CreateProductRequest(s.title, desc, s.price.toDoubleOrNull()?:0.0, 5, "/assets/mordura1.png", CategoryIdRequest(6))
+            val ok = productRepository.createProduct(req)
+            withContext(Dispatchers.Main) {
+                _addCuadro.update { it.copy(isSaving = false, saveSuccess = ok) }
+                if (ok) fetchCatalog() else Toast.makeText(ctx, "Error al crear", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
     fun clearAddCuadroState() { _addCuadro.value = AddCuadroUiState() }
 
-    fun deleteProduct(p: Product) { /* TODO: API DELETE */ }
-    fun deleteCuadro(c: Cuadro) { /* TODO: API DELETE */ }
+    // Otros
+    fun logout() { viewModelScope.launch { userRepository.logout(); _isAdminSession.value = false } }
+    fun clearLoginResult() { _login.value = LoginUiState() }
+    fun clearRegisterResult() { _register.value = RegisterUiState() }
+    fun createTempImageUri(): Uri {
+        val context = getApplication<Application>().applicationContext
+        val imageDir = File(context.cacheDir, "images").apply { mkdirs() }
+        val tempFile = File.createTempFile("product_${System.currentTimeMillis()}", ".jpg", imageDir)
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+    }
 
+    fun deleteProduct(p: Product) {}
+    fun deleteCuadro(c: Cuadro) {}
     fun updateProductImage(ctx: Context, id: Long, uri: Uri, onDone: (Boolean, String?) -> Unit) { onDone(true, null) }
 
     fun onResetEmailChange(v: String) { _resetPassword.update { it.copy(email = v) } }
     fun onResetNewPassChange(v: String) { _resetPassword.update { it.copy(newPass = v) } }
     fun onResetConfirmChange(v: String) { _resetPassword.update { it.copy(confirm = v) } }
-    fun submitResetPassword() { /* Placeholder */ }
+    fun submitResetPassword() {}
     fun clearResetPasswordState() { _resetPassword.value = ResetPasswordUiState() }
 
     fun changePassword(curr: String, new: String, res: (Boolean, String?) -> Unit) { res(true, null) }
-    fun changeDisplayName(n: String, a: String?) { }
+    fun changeDisplayName(n: String, a: String?) {}
 
     suspend fun setThemeMode(m: String) = userPreferences.setThemeMode(m)
     suspend fun setAccentColor(c: String) = userPreferences.setAccentColor(c)
@@ -445,13 +443,4 @@ class AuthViewModel(
     suspend fun setNotifOffers(b: Boolean) = userPreferences.setNotifOffers(b)
     suspend fun setNotifTracking(b: Boolean) = userPreferences.setNotifTracking(b)
     suspend fun setNotifCart(b: Boolean) = userPreferences.setNotifCart(b)
-
-    // --- CÁMARA ---
-    fun createTempImageUri(): Uri {
-        val context = getApplication<Application>().applicationContext
-        val imageDir = File(context.cacheDir, "images").apply { mkdirs() }
-        val tempFile = File.createTempFile("product_${System.currentTimeMillis()}", ".jpg", imageDir)
-        val authority = "${context.packageName}.fileprovider"
-        return FileProvider.getUriForFile(context, authority, tempFile)
-    }
 }

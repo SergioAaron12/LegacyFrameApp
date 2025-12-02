@@ -5,10 +5,10 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
     // URLs Internas (Microservicios)
-    private const val BASE_URL_AUTH = "http://10.0.2.2:8085/"
-    private const val BASE_URL_PRODUCTOS = "http://10.0.2.2:8083/"
-    private const val BASE_URL_PEDIDOS = "http://10.0.2.2:8084/"
-    private const val BASE_URL_CONTACTO = "http://10.0.2.2:8081/"
+    private const val BASE_URL_AUTH = "https://h47cdgd3-8085.use2.devtunnels.ms/"   //8085
+    private const val BASE_URL_PRODUCTOS = "https://h47cdgd3-8083.use2.devtunnels.ms/"  //8083
+    private const val BASE_URL_PEDIDOS = "https://h47cdgd3-8084.use2.devtunnels.ms/"   //8084
+    private const val BASE_URL_CONTACTO = "https://h47cdgd3-8081.use2.devtunnels.ms/"   //8081
 
     // URL Externa (Internet)
     private const val BASE_URL_EXTERNAL = "https://mindicador.cl/"

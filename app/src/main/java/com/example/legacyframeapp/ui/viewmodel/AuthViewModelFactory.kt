@@ -19,13 +19,12 @@ class AuthViewModelFactory(
     private val cartRepository: CartRepository,
     private val userPreferences: UserPreferences,
     private val orderRepository: OrderRepository?,
-    private val contactRepository: ContactRepository // <--- ESTO FALTABA
+    private val contactRepository: ContactRepository
 ) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
-            // Ahora sí podemos pasar todos los ingredientes
             return AuthViewModel(
                 application = application,
                 userRepository = userRepository,
@@ -34,7 +33,7 @@ class AuthViewModelFactory(
                 cartRepository = cartRepository,
                 userPreferences = userPreferences,
                 orderRepository = orderRepository,
-                contactRepository = contactRepository // <--- Y AQUÍ TAMBIÉN
+                contactRepository = contactRepository
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")

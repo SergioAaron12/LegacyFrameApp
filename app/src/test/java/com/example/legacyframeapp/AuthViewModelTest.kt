@@ -69,8 +69,10 @@ class AuthViewModelTest {
         coEvery { cartRepo.total() } returns flowOf(0)
         coEvery { cartRepo.count() } returns flowOf(0)
 
-        // IMPORTANTE: Evita el error "no answer found"
-        coEvery { orderRepo.getAll() } returns flowOf(emptyList())
+        // --- CORRECCIÓN AQUÍ ---
+        // Antes decía getAll() (que ya no existe), ahora usamos getMyOrders()
+        coEvery { orderRepo.getMyOrders(any()) } returns emptyList()
+        // -----------------------
 
         // Inicializar el ViewModel
         viewModel = AuthViewModel(
