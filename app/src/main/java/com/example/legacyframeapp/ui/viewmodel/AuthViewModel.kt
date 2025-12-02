@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.legacyframeapp.R
 import com.example.legacyframeapp.data.local.cart.CartItemEntity
 import com.example.legacyframeapp.data.local.storage.UserPreferences
+import com.example.legacyframeapp.data.network.RetrofitClient
 import com.example.legacyframeapp.data.network.model.OrderDetail
 import com.example.legacyframeapp.data.network.model.OrderRequest
 import com.example.legacyframeapp.data.network.model.RegisterRequest
@@ -18,6 +19,7 @@ import com.example.legacyframeapp.data.repository.CuadroRepository
 import com.example.legacyframeapp.data.repository.OrderRepository
 import com.example.legacyframeapp.data.repository.ProductRepository
 import com.example.legacyframeapp.data.repository.UserRepository
+import com.example.legacyframeapp.domain.ImageStorageHelper
 import com.example.legacyframeapp.domain.model.Cuadro
 import com.example.legacyframeapp.domain.model.Order
 import com.example.legacyframeapp.domain.model.Product
@@ -36,7 +38,7 @@ import java.io.File
 import java.text.NumberFormat
 import java.util.Locale
 
-// --- ESTADOS DE UI (Data Classes) ---
+// --- ESTADOS DE UI ---
 
 data class LoginUiState(
     val email: String = "",
@@ -135,19 +137,22 @@ class AuthViewModel(
 
     // --- ESTADO DE SESIÓN ---
     val session = userPreferences.isLoggedIn.map { loggedIn ->
-        // Usuario temporal para la UI si está logueado
         val user = if (loggedIn) User(id = 1, nombre = "Usuario", email = "usuario@legacy.cl") else null
         SessionUiState(isLoggedIn = loggedIn, isAdmin = true, currentUser = user)
     }.stateIn(viewModelScope, SharingStarted.Lazily, SessionUiState())
 
-    // --- CATÁLOGO (Desde API) ---
+    // --- CATÁLOGO ---
     private val _products = MutableStateFlow<List<Product>>(emptyList())
     val products = _products.asStateFlow()
 
     private val _cuadros = MutableStateFlow<List<Cuadro>>(emptyList())
     val cuadros = _cuadros.asStateFlow()
 
-    // --- CARRITO (Local - Room) ---
+    // --- API EXTERNA (Dólar) ---
+    private val _dolarValue = MutableStateFlow<Double?>(null)
+    val dolarValue = _dolarValue.asStateFlow()
+
+    // --- CARRITO ---
     val cartItems: StateFlow<List<CartItemEntity>> = cartRepository.items()
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
@@ -182,26 +187,25 @@ class AuthViewModel(
     private val _addCuadro = MutableStateFlow(AddCuadroUiState())
     val addCuadro = _addCuadro.asStateFlow()
 
-    // Historial de Compras (Desde API)
     val orders: StateFlow<List<Order>> =
         (orderRepository?.getAll() ?: flowOf(emptyList()))
             .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     init {
-        // Cargar catálogo al iniciar
         fetchCatalog()
+        fetchDolarValue()
     }
 
     // ========================================================================
-    // 1. CARGA DE DATOS (API PRODUCTOS)
+    // 1. CARGA DE DATOS
     // ========================================================================
 
     private fun fetchCatalog() {
-        viewModelScope.launch(Dispatchers.IO) {
-            // Obtenemos lista unificada de la API
+        // CORRECCIÓN: Eliminado Dispatchers.IO para facilitar el testing
+        // Retrofit ya gestiona el hilo de fondo internamente.
+        viewModelScope.launch {
             val apiList = productRepository.getAllProducts()
 
-            // Separamos: Productos (Molduras) vs Cuadros
             _products.value = apiList.filter { !it.category.equals("cuadros", ignoreCase = true) }
 
             _cuadros.value = apiList.filter { it.category.equals("cuadros", ignoreCase = true) }
@@ -221,10 +225,29 @@ class AuthViewModel(
         }
     }
 
+    // ========================================================================
+    // 2. API EXTERNA (INDICADORES)
+    // ========================================================================
+
+    private fun fetchDolarValue() {
+        // CORRECCIÓN: Eliminado Dispatchers.IO para testing
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.externalService.getIndicadores()
+                if (response.isSuccessful && response.body() != null) {
+                    val valor = response.body()!!.dolar.valor
+                    _dolarValue.value = valor
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     fun prefetchProductImages(context: Context) { /* Opcional */ }
 
     // ========================================================================
-    // 2. LOGIN Y REGISTRO (API AUTH)
+    // 3. LOGIN Y REGISTRO
     // ========================================================================
 
     fun onLoginEmailChange(v: String) { _login.update { it.copy(email = v) } }
@@ -238,6 +261,12 @@ class AuthViewModel(
 
         viewModelScope.launch {
             val result = userRepository.login(s.email, s.pass)
+
+            // Guardamos sesión si es exitoso
+            if (result.isSuccess) {
+                userPreferences.setLoggedIn(true)
+            }
+
             _login.update { state ->
                 if (result.isSuccess) {
                     state.copy(success = true, isSubmitting = false)
@@ -280,7 +309,6 @@ class AuthViewModel(
     fun clearRegisterResult() { _register.value = RegisterUiState() }
     fun logout() { viewModelScope.launch { userRepository.logout() } }
 
-    // Helpers UI Registro
     fun onRegisterNombreChange(v: String) { _register.update { it.copy(nombre = v) } }
     fun onRegisterApellidoChange(v: String) { _register.update { it.copy(apellido = v) } }
     fun onRegisterRutChange(v: String) { _register.update { it.copy(rut = v) } }
@@ -291,7 +319,7 @@ class AuthViewModel(
     fun onRegisterConfirmChange(v: String) { _register.update { it.copy(confirm = v) } }
 
     // ========================================================================
-    // 3. CARRITO (LOCAL ROOM)
+    // 4. CARRITO (LOCAL)
     // ========================================================================
 
     fun addProductToCart(p: Product) {
@@ -319,13 +347,15 @@ class AuthViewModel(
     }
 
     // ========================================================================
-    // 4. CREAR PEDIDO (API PEDIDOS)
+    // 5. PEDIDOS (API)
     // ========================================================================
 
     fun recordOrder(items: List<CartItemEntity>, total: Int) {
         if (orderRepository == null) return
 
-        viewModelScope.launch(Dispatchers.IO) {
+        // CORRECCIÓN: Eliminado Dispatchers.IO para testing
+        // Se asume que OrderRepository maneja el hilo con withContext
+        viewModelScope.launch {
             val detalles = items.map {
                 OrderDetail(
                     productoId = it.refId,
@@ -335,7 +365,7 @@ class AuthViewModel(
                 )
             }
             val request = OrderRequest(items = detalles)
-            val emailUser = "usuario@test.com" // TODO: Usar email real
+            val emailUser = "usuario@test.com"
 
             val result = orderRepository.createOrder(emailUser, request)
             if (result.isSuccess) {
@@ -361,7 +391,7 @@ class AuthViewModel(
     }
 
     // ========================================================================
-    // 5. CONTACTO (API CONTACTO)
+    // 6. CONTACTO (API)
     // ========================================================================
 
     fun sendContactMessage(nombre: String, email: String, mensaje: String, onResult: (Boolean) -> Unit) {
@@ -372,7 +402,7 @@ class AuthViewModel(
     }
 
     // ========================================================================
-    // 6. ADMIN Y OTROS (Placeholders)
+    // 7. ADMIN Y OTROS
     // ========================================================================
 
     fun onAddProductChange(name: String = "", description: String = "", price: String = "") {
@@ -395,23 +425,20 @@ class AuthViewModel(
     }
     fun clearAddCuadroState() { _addCuadro.value = AddCuadroUiState() }
 
-    // Admin Actions (Usan modelos de dominio)
     fun deleteProduct(p: Product) { /* TODO: API DELETE */ }
     fun deleteCuadro(c: Cuadro) { /* TODO: API DELETE */ }
+
     fun updateProductImage(ctx: Context, id: Long, uri: Uri, onDone: (Boolean, String?) -> Unit) { onDone(true, null) }
 
-    // Reset Password UI
     fun onResetEmailChange(v: String) { _resetPassword.update { it.copy(email = v) } }
     fun onResetNewPassChange(v: String) { _resetPassword.update { it.copy(newPass = v) } }
     fun onResetConfirmChange(v: String) { _resetPassword.update { it.copy(confirm = v) } }
     fun submitResetPassword() { /* Placeholder */ }
     fun clearResetPasswordState() { _resetPassword.value = ResetPasswordUiState() }
 
-    // Perfil
     fun changePassword(curr: String, new: String, res: (Boolean, String?) -> Unit) { res(true, null) }
     fun changeDisplayName(n: String, a: String?) { }
 
-    // Preferencias
     suspend fun setThemeMode(m: String) = userPreferences.setThemeMode(m)
     suspend fun setAccentColor(c: String) = userPreferences.setAccentColor(c)
     suspend fun setFontScale(s: Float) = userPreferences.setFontScale(s)
@@ -419,12 +446,12 @@ class AuthViewModel(
     suspend fun setNotifTracking(b: Boolean) = userPreferences.setNotifTracking(b)
     suspend fun setNotifCart(b: Boolean) = userPreferences.setNotifCart(b)
 
-    // --- FUNCIÓN PARA CÁMARA (NUEVA) ---
+    // --- CÁMARA ---
     fun createTempImageUri(): Uri {
         val context = getApplication<Application>().applicationContext
         val imageDir = File(context.cacheDir, "images").apply { mkdirs() }
         val tempFile = File.createTempFile("product_${System.currentTimeMillis()}", ".jpg", imageDir)
-        val authority = "${context.packageName}.fileprovider" // Debe coincidir con AndroidManifest
+        val authority = "${context.packageName}.fileprovider"
         return FileProvider.getUriForFile(context, authority, tempFile)
     }
 }

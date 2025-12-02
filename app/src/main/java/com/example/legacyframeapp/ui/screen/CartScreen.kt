@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -29,8 +28,10 @@ import com.example.legacyframeapp.ui.components.formatWithThousands
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.launch
+import java.text.DecimalFormat
 
-// Pantalla de Carrito (con ViewModel): obtiene items y total, maneja acciones de compra
+// Pantalla de Carrito (Conectada al ViewModel)
 @Composable
 fun CartScreenVm(
     vm: AuthViewModel,
@@ -40,12 +41,17 @@ fun CartScreenVm(
     val items by vm.cartItems.collectAsStateWithLifecycle()
     val total by vm.cartTotal.collectAsStateWithLifecycle()
     val session by vm.session.collectAsStateWithLifecycle()
+
+    // --- NUEVO: Obtenemos el valor del dólar desde la API externa ---
+    val dolarValue by vm.dolarValue.collectAsStateWithLifecycle()
+
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     CartScreen(
         items = items,
         total = total,
+        dolarValue = dolarValue, // Pasamos el valor del dólar
         isLoggedIn = session.isLoggedIn,
         snackbarHostState = snackbarHostState,
         onRemoveOne = { item -> vm.updateCartQuantity(item, item.quantity - 1) },
@@ -53,13 +59,12 @@ fun CartScreenVm(
         onRemoveItem = vm::removeFromCart,
         onPurchase = {
             if (!session.isLoggedIn) {
-                // Mostrar aviso y opcionalmente redirigir
                 scope.launch { snackbarHostState.showSnackbar("Debes iniciar sesión para comprar.") }
                 onRequireLogin()
             } else {
                 vm.recordOrder(items, total)
                 vm.showPurchaseNotification()
-                vm.clearCart()
+                // vm.clearCart() // Esto ya se hace dentro de recordOrder si es exitoso
                 onNavigateBack()
             }
         },
@@ -67,12 +72,13 @@ fun CartScreenVm(
     )
 }
 
-// UI del Carrito: barra superior, lista de items y barra inferior con total y botón Comprar
+// UI del Carrito
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CartScreen(
     items: List<CartItemEntity>,
     total: Int,
+    dolarValue: Double?, // Valor del dólar (puede ser nulo si falla la API)
     isLoggedIn: Boolean,
     snackbarHostState: SnackbarHostState,
     onRemoveOne: (CartItemEntity) -> Unit,
@@ -100,37 +106,48 @@ fun CartScreen(
         },
         bottomBar = {
             if (items.isNotEmpty()) {
-                Surface(shadowElevation = 8.dp) {
+                Surface(shadowElevation = 16.dp) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                            .padding(16.dp), // Más padding para que se vea bien
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column {
                             Text("Total:", style = MaterialTheme.typography.bodyMedium)
+
+                            // Total en Pesos
                             Text(
-                                // Total formateado con separador de miles
                                 text = "$ ${formatWithThousands(total.toString())}",
-                                style = MaterialTheme.typography.titleLarge,
+                                style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary
                             )
+
+                            // --- NUEVO: Total en Dólares (API Externa) ---
+                            if (dolarValue != null && dolarValue > 0) {
+                                val totalUsd = total / dolarValue
+                                val format = DecimalFormat("#,##0.00")
+                                Text(
+                                    text = "≈ US$ ${format.format(totalUsd)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray
+                                )
+                            }
                         }
+
                         Button(
                             onClick = onPurchase,
                             enabled = isLoggedIn,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
-                                disabledContentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f)
+                                contentColor = MaterialTheme.colorScheme.onPrimary
                             )
                         ) {
                             Icon(Icons.Default.ShoppingCartCheckout, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
-                            Text(if (isLoggedIn) "Comprar" else "Inicia sesión")
+                            Text(if (isLoggedIn) "Pagar" else "Ingresa")
                         }
                     }
                 }
@@ -142,30 +159,39 @@ fun CartScreen(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Tu carrito está vacío.", color = Color.Gray)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.ShoppingCartCheckout,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = Color.LightGray
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    Text("Tu carrito está vacío.", color = Color.Gray)
+                }
             }
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(items, key = { it.id }) { item ->
-                    // Fila de item con controles de cantidad y eliminar
                     CartItemRow(
                         item = item,
                         onRemoveOne = { onRemoveOne(item) },
                         onAddOne = { onAddOne(item) },
                         onRemoveItem = { onRemoveItem(item) }
                     )
-                    HorizontalDivider() // Separador
+                    if (items.last() != item) {
+                        HorizontalDivider(modifier = Modifier.padding(top = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    }
                 }
             }
         }
     }
 }
 
-// Fila de un item del carrito: imagen, nombre, precio, controles +/- y subtotal
 @Composable
 fun CartItemRow(
     item: CartItemEntity,
@@ -174,28 +200,35 @@ fun CartItemRow(
     onRemoveItem: () -> Unit
 ) {
     val context = LocalContext.current
-    val placeholderDrawable = R.drawable.ic_launcher_foreground // O tu placeholder
+    val placeholderDrawable = R.drawable.ic_launcher_foreground
 
-    // Resolución de imagen: URL, archivo local o recurso drawable
+    // Lógica robusta para imagen (URL vs Local)
     val imageRequest = remember(item.imagePath) {
         val dataToLoad: Any? = item.imagePath?.let { path ->
             when {
                 path.isBlank() -> null
-                path.startsWith("http", ignoreCase = true) -> path
-                ImageStorageHelper.getImageFile(context, path).exists() ->
-                    ImageStorageHelper.getImageFile(context, path)
+                path.startsWith("http", ignoreCase = true) -> path // Es URL (API)
                 else -> {
-                    val resourceId = context.resources.getIdentifier(path, "drawable", context.packageName)
-                    if (resourceId != 0) resourceId else null
+                    // Es archivo local o drawable
+                    val file = ImageStorageHelper.getImageFile(context, path)
+                    if (file.exists()) {
+                        file
+                    } else {
+                        val resId = context.resources.getIdentifier(path, "drawable", context.packageName)
+                        if (resId != 0) resId else null
+                    }
                 }
             }
         }
         ImageRequest.Builder(context)
-            .data(dataToLoad).placeholder(placeholderDrawable).error(placeholderDrawable).crossfade(true).build()
+            .data(dataToLoad)
+            .placeholder(placeholderDrawable)
+            .error(placeholderDrawable)
+            .crossfade(true)
+            .build()
     }
 
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
-    // Fila superior: miniatura, nombre, precio unitario y botón eliminar
+    Column(modifier = Modifier.padding(vertical = 4.dp)) {
         Row(
             verticalAlignment = Alignment.Top,
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -205,45 +238,57 @@ fun CartItemRow(
                 AsyncImage(
                     model = imageRequest,
                     contentDescription = item.name,
-                    modifier = Modifier.size(64.dp).clip(RoundedCornerShape(4.dp)),
+                    modifier = Modifier.size(70.dp).clip(RoundedCornerShape(8.dp)),
                     contentScale = ContentScale.Crop
                 )
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(16.dp))
                 Column {
-                    Text(text = item.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(
-                        // Precio unitario formateado
+                        text = item.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
                         text = "$ ${formatWithThousands(item.price.toString())}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.secondary
                     )
                 }
             }
-            IconButton(onClick = onRemoveItem, modifier = Modifier.size(36.dp)) {
-                Icon(Icons.Default.Delete, contentDescription = "Eliminar del carrito", tint = MaterialTheme.colorScheme.error)
+            IconButton(onClick = onRemoveItem) {
+                Icon(Icons.Default.Delete, contentDescription = "Eliminar", tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
             }
         }
 
         Spacer(Modifier.height(8.dp))
 
-    // Fila inferior: controles de cantidad y subtotal calculado
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.End,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Controles +/-/Cantidad
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                OutlinedButton(onClick = onRemoveOne, modifier = Modifier.size(36.dp), contentPadding = PaddingValues(0.dp)) { Text("-") }
-                Text(item.quantity.toString(), style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 8.dp))
-                OutlinedButton(onClick = onAddOne, modifier = Modifier.size(36.dp), contentPadding = PaddingValues(0.dp)) { Text("+") }
-            }
-            // Subtotal del item = precio * cantidad
+            Text("Cantidad:", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(end = 8.dp))
+            OutlinedButton(
+                onClick = onRemoveOne,
+                modifier = Modifier.size(32.dp),
+                contentPadding = PaddingValues(0.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) { Text("-") }
+
             Text(
-                text = "Subtotal: $ ${formatWithThousands((item.price * item.quantity).toString())}",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold
+                text = item.quantity.toString(),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 12.dp)
             )
+
+            OutlinedButton(
+                onClick = onAddOne,
+                modifier = Modifier.size(32.dp),
+                contentPadding = PaddingValues(0.dp),
+                shape = RoundedCornerShape(8.dp)
+            ) { Text("+") }
         }
     }
 }
