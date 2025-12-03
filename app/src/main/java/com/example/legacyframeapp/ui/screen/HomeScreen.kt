@@ -54,14 +54,14 @@ fun HomeScreen(
         // Mapeo de imágenes locales (si tus datos de prueba usan estos nombres)
         // CAMBIO: Usamos p.imageUrl en lugar de p.imagePath
         val resId = when (p.imageUrl) {
-            "moldura1" -> R.drawable.moldura1
-            "moldura2" -> R.drawable.moldura2
+            "moldura1" -> R.drawable.moldura4
+            "moldura2" -> R.drawable.moldura5
             "moldura3" -> R.drawable.moldura3
-            "p15_greca_plata" -> R.drawable.p15_greca_plata
-            "h20_albayalde_azul" -> R.drawable.h20_albayalde_azul
-            "b10_alerce" -> R.drawable.b10_alerce
-            "j16_nativa" -> R.drawable.j16_nativa
-            "p12_finger_joint" -> R.drawable.p12_finger_joint
+            "p15_greca_plata" -> R.drawable.nativas1
+            "h20_albayalde_azul" -> R.drawable.paisaje
+            "b10_alerce" -> R.drawable.rustica1
+            "j16_nativa" -> R.drawable.moldura6
+            "p12_finger_joint" -> R.drawable.moldura8
             else -> null
         }
         ProductHome(

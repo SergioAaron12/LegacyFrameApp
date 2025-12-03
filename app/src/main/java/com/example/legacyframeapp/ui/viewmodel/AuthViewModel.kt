@@ -383,7 +383,7 @@ class AuthViewModel(
         val s = _addProduct.value
         _addProduct.update { it.copy(isSaving = true) }
         viewModelScope.launch(Dispatchers.IO) {
-            val req = CreateProductRequest(s.name, s.description, s.price.toDoubleOrNull()?:0.0, 10, "/assets/mordura1.png", CategoryIdRequest(1))
+            val req = CreateProductRequest(s.name, s.description, s.price.toDoubleOrNull()?:0.0, 10, "/assets/moldura3.png", CategoryIdRequest(1))
             val ok = productRepository.createProduct(req)
             withContext(Dispatchers.Main) {
                 _addProduct.update { it.copy(isSaving = false, saveSuccess = ok) }
@@ -403,7 +403,7 @@ class AuthViewModel(
         _addCuadro.update { it.copy(isSaving = true) }
         viewModelScope.launch(Dispatchers.IO) {
             val desc = "${s.description} | ${s.size} | ${s.material}"
-            val req = CreateProductRequest(s.title, desc, s.price.toDoubleOrNull()?:0.0, 5, "/assets/mordura1.png", CategoryIdRequest(6))
+            val req = CreateProductRequest(s.title, desc, s.price.toDoubleOrNull()?:0.0, 5, "/assets/moldura3.png", CategoryIdRequest(6))
             val ok = productRepository.createProduct(req)
             withContext(Dispatchers.Main) {
                 _addCuadro.update { it.copy(isSaving = false, saveSuccess = ok) }
