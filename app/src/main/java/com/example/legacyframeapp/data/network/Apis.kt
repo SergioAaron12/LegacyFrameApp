@@ -5,7 +5,7 @@ import retrofit2.Response
 import retrofit2.http.*
 
 // ==================================================================
-// 1. AUTH
+// 1. AUTH (LOGIN, REGISTRO Y PERFIL)
 // ==================================================================
 interface AuthApiService {
     @POST("/auth/login")
@@ -13,10 +13,17 @@ interface AuthApiService {
 
     @POST("/auth/register")
     suspend fun register(@Body request: RegisterRequest): Response<Void>
+
+    // --- NUEVOS ENDPOINTS DE PERFIL ---
+    @GET("/auth/perfil")
+    suspend fun getProfile(@Query("email") email: String): Response<UserProfileResponse>
+
+    @PUT("/auth/profile")
+    suspend fun updateProfile(@Body request: UpdateProfileRequest): Response<UserProfileResponse>
 }
 
 // ==================================================================
-// 2. PRODUCTOS
+// 2. PRODUCTOS (CATÁLOGO Y GESTIÓN)
 // ==================================================================
 interface ProductApiService {
     @GET("/api/catalog/productos")
@@ -24,6 +31,9 @@ interface ProductApiService {
 
     @POST("/api/catalog/productos")
     suspend fun createProduct(@Body request: CreateProductRequest): Response<ProductRemote>
+
+    @DELETE("/api/catalog/productos/{id}")
+    suspend fun deleteProduct(@Path("id") id: Long): Response<Void>
 }
 
 // ==================================================================

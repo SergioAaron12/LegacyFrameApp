@@ -1,30 +1,38 @@
 package com.example.legacyframeapp.ui.screen
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TermsScreen(onBack: () -> Unit = {}) {
-    Scaffold { inner ->
+fun TermsScreen(onBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Términos y Condiciones") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Volver") }
+                }
+            )
+        }
+    ) { innerPadding ->
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(inner)
-                .padding(16.dp)
+            modifier = Modifier.padding(innerPadding).padding(16.dp).verticalScroll(rememberScrollState())
         ) {
-            Text("Términos y condiciones", style = MaterialTheme.typography.headlineSmall)
+            Text("Términos de Servicio", style = MaterialTheme.typography.headlineSmall)
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "Al utilizar Legacy Frames aceptas nuestros términos de uso y políticas de privacidad. " +
-                        "Los precios pueden variar sin previo aviso. Las imágenes son referenciales. " +
-                        "Para más información o consultas contáctanos por WhatsApp o teléfono.",
-                modifier = Modifier.padding(top = 12.dp)
+                "Bienvenido a Legacy Frames. Al usar esta aplicación, aceptas nuestros términos de servicio. " +
+                        "Nos reservamos el derecho de modificar los precios y productos sin previo aviso. " +
+                        "El envío de productos está sujeto a disponibilidad..."
+                // Agrega más texto si quieres
             )
         }
     }

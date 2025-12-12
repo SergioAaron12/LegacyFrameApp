@@ -12,7 +12,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,20 +57,11 @@ fun AppRoot() {
     val userPrefs = UserPreferences(context)
 
     // 3. Crear Repositorios
-    // UserRepository ahora usa Preferences para guardar el token y Retrofit internamente
     val userRepository = UserRepository(userPrefs)
-
-    // ProductRepository y CuadroRepository ahora usan Retrofit (sin argumentos de constructor)
     val productRepository = ProductRepository()
     val cuadroRepository = CuadroRepository()
-
-    // CartRepository sigue usando el DAO local (Room)
     val cartRepository = CartRepository(cartDao)
-
-    // OrderRepository usa Retrofit (sin argumentos)
     val orderRepository = OrderRepository()
-
-    // ContactRepository usa Retrofit (sin argumentos)
     val contactRepository = ContactRepository()
 
     // 4. Crear el ViewModel usando la Factory
@@ -110,10 +100,9 @@ fun AppRoot() {
         fontScale = fontScale
     ) {
         Surface(color = MaterialTheme.colorScheme.background) {
-            // Efecto secundario: Precargar imágenes al iniciar (opcional)
-            LaunchedEffect(Unit) {
-                authViewModel.prefetchProductImages(context.applicationContext)
-            }
+
+            // --- AQUÍ QUITAMOS LA LLAMADA QUE DABA ERROR ---
+            // Ya no es necesario llamar a prefetchProductImages
 
             // Iniciar el Grafo de Navegación
             AppNavGraph(

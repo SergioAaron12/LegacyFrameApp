@@ -12,21 +12,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddShoppingCart
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.example.legacyframeapp.R
 import com.example.legacyframeapp.domain.model.Cuadro
 import com.example.legacyframeapp.ui.components.formatWithThousands
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
@@ -62,25 +62,31 @@ fun CuadrosScreen(
                 enter = scaleIn() + fadeIn(),
                 exit = scaleOut() + fadeOut()
             ) {
-                FloatingActionButton(onClick = onAddCuadro) {
+                FloatingActionButton(
+                    onClick = onAddCuadro,
+                    containerColor = MaterialTheme.colorScheme.tertiary
+                ) {
                     Icon(Icons.Default.Add, contentDescription = "Añadir Cuadro")
                 }
             }
         }
     ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (cuadros.isEmpty()) {
                 item {
-                    Text(
-                        text = "No hay cuadros disponibles.",
-                        modifier = Modifier.padding(top = 20.dp).fillMaxWidth(),
-                        textAlign = TextAlign.Center,
-                        color = Color.Gray
-                    )
+                    Box(modifier = Modifier.fillMaxWidth().padding(top = 40.dp), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "No hay cuadros disponibles.",
+                            color = Color.Gray,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
                 }
             } else {
                 items(cuadros, key = { it.id }) { cuadro ->
@@ -94,44 +100,34 @@ fun CuadrosScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CuadroCard(
     cuadro: Cuadro,
     onAddToCart: () -> Unit
 ) {
-    val context = LocalContext.current
-    val placeholderDrawable = R.drawable.ic_launcher_foreground
-
-    // --- LÓGICA INTELIGENTE DE IMAGEN ---
-    val model: Any? = remember(cuadro.imageUrl) {
-        when {
-            cuadro.imageUrl.startsWith("http") -> cuadro.imageUrl
-            else -> {
-                val resId = context.resources.getIdentifier(cuadro.imageUrl, "drawable", context.packageName)
-                if (resId != 0) resId else null
-            }
-        }
-    }
+    // Usamos un icono vectorial como placeholder por si la imagen falla o está cargando
+    val placeholderPainter = rememberVectorPainter(image = Icons.Default.Photo)
 
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(8.dp)
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // --- IMAGEN DESDE INTERNET ---
             AsyncImage(
-                model = model,
+                model = cuadro.imageUrl, // Pasamos la URL directamente (http://...)
                 contentDescription = cuadro.title,
                 modifier = Modifier
                     .size(90.dp)
                     .clip(RoundedCornerShape(6.dp)),
                 contentScale = ContentScale.Crop,
-                placeholder = null, // Opcional: placeholderDrawable
-                error = null        // Opcional: placeholderDrawable
+                placeholder = placeholderPainter,
+                error = placeholderPainter
             )
 
             Spacer(Modifier.width(16.dp))
@@ -145,6 +141,7 @@ fun CuadroCard(
                     overflow = TextOverflow.Ellipsis
                 )
 
+                // Detalles combinados (Tamaño / Material)
                 val details = listOfNotNull(
                     cuadro.size.takeIf { it.isNotBlank() },
                     cuadro.material.takeIf { it.isNotBlank() }
@@ -192,11 +189,14 @@ fun CuadroCard(
                         color = MaterialTheme.colorScheme.primary
                     )
 
-                    IconButton(onClick = onAddToCart, modifier = Modifier.size(36.dp)) {
+                    IconButton(
+                        onClick = onAddToCart,
+                        modifier = Modifier.size(36.dp),
+                        colors = IconButtonDefaults.iconButtonColors(contentColor = MaterialTheme.colorScheme.primary)
+                    ) {
                         Icon(
                             imageVector = Icons.Default.AddShoppingCart,
-                            contentDescription = "Añadir al carrito",
-                            tint = MaterialTheme.colorScheme.primary
+                            contentDescription = "Añadir al carrito"
                         )
                     }
                 }

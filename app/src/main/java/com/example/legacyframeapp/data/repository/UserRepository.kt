@@ -2,71 +2,77 @@ package com.example.legacyframeapp.data.repository
 
 import com.example.legacyframeapp.data.local.storage.UserPreferences
 import com.example.legacyframeapp.data.network.RetrofitClient
-import com.example.legacyframeapp.data.network.model.LoginRequest
-import com.example.legacyframeapp.data.network.model.RegisterRequest
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.example.legacyframeapp.data.network.model.*
 
-class UserRepository(
-    private val userPreferences: UserPreferences
-) {
+class UserRepository(private val userPreferences: UserPreferences) {
 
-    /**
-     * Inicia sesión enviando credenciales a la API.
-     * Si es exitoso, guarda el estado de "logueado" en el teléfono.
-     */
-    suspend fun login(email: String, pass: String): Result<Boolean> {
-        return withContext(Dispatchers.IO) {
-            try {
-                // 1. Crear el objeto de solicitud (DTO)
-                val request = LoginRequest(email = email, pass = pass)
+    // --- LOGIN ---
+    suspend fun login(email: String, pass: String): Result<String> {
+        return try {
+            // CORRECCIÓN AQUÍ: Usamos 'pass =' en lugar de 'password ='
+            val request = LoginRequest(email = email, pass = pass)
 
-                // 2. Llamar a la API
-                val response = RetrofitClient.authService.login(request)
+            val response = RetrofitClient.authService.login(request)
 
-                if (response.isSuccessful && response.body() != null) {
-                    val token = response.body()!!.token
-
-                    // 3. Guardar sesión localmente
-                    // Aquí guardamos el flag de logueado.
-                    // (Opcional: Si agregas saveToken a UserPreferences, guárdalo aquí también)
-                    userPreferences.setLoggedIn(true)
-
-                    Result.success(true)
-                } else {
-                    // Manejo de error (401, 403, etc.)
-                    Result.failure(Exception("Credenciales incorrectas"))
-                }
-            } catch (e: Exception) {
-                // Error de red o servidor caído
-                Result.failure(e)
+            if (response.isSuccessful) {
+                val token = response.body()?.token ?: ""
+                // Guardamos Token y Email
+                userPreferences.saveToken(token)
+                userPreferences.saveEmail(email)
+                userPreferences.setLoggedIn(true) // Aseguramos que se marque como logueado
+                Result.success(token)
+            } else {
+                Result.failure(Exception("Error Login: ${response.code()}"))
             }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
-    /**
-     * Registra un nuevo usuario en la API.
-     */
+    // --- REGISTRO ---
     suspend fun register(request: RegisterRequest): Result<Boolean> {
-        return withContext(Dispatchers.IO) {
-            try {
-                val response = RetrofitClient.authService.register(request)
-
-                if (response.isSuccessful) {
-                    Result.success(true)
-                } else {
-                    val errorMsg = response.errorBody()?.string() ?: "Error al registrar"
-                    Result.failure(Exception(errorMsg))
-                }
-            } catch (e: Exception) {
-                Result.failure(e)
+        return try {
+            val response = RetrofitClient.authService.register(request)
+            if (response.isSuccessful) {
+                Result.success(true)
+            } else {
+                Result.failure(Exception("Error Registro: ${response.code()}"))
             }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
-    // Función auxiliar para cerrar sesión
+    // --- CERRAR SESIÓN ---
     suspend fun logout() {
-        userPreferences.setLoggedIn(false)
-        // userPreferences.clearToken() // Si implementas el borrado de token
+        userPreferences.clear()
+    }
+
+    // --- OBTENER PERFIL ---
+    suspend fun getProfile(email: String): Result<UserProfileResponse> {
+        return try {
+            val response = RetrofitClient.authService.getProfile(email)
+            if (response.isSuccessful && response.body() != null) {
+                Result.success(response.body()!!)
+            } else {
+                Result.failure(Exception("Error al cargar perfil: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // --- ACTUALIZAR PERFIL ---
+    suspend fun updateProfile(req: UpdateProfileRequest): Result<Boolean> {
+        return try {
+            val response = RetrofitClient.authService.updateProfile(req)
+            if (response.isSuccessful) {
+                Result.success(true)
+            } else {
+                Result.failure(Exception("Error al actualizar: ${response.code()}"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

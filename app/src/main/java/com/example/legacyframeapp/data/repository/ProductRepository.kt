@@ -9,8 +9,8 @@ import com.example.legacyframeapp.domain.model.Product
 class ProductRepository {
 
     companion object {
-        // ⚠️ IMPORTANTE: Pega aquí tu link del puerto 8083 de VS Code (sin barra al final)
-        private const val BASE_IMAGE_URL = "https://tu-link-prod-8083.devtunnels.ms"
+        // Tu servidor (Emulador o DevTunnels)
+        private const val BASE_IMAGE_URL = "http://10.0.2.2:8083"
     }
 
     suspend fun getAllProducts(): List<Product> {
@@ -21,11 +21,22 @@ class ProductRepository {
                 val remotes: List<ProductRemote> = response.body() ?: emptyList()
 
                 remotes.map { remote ->
-                    val rawUrl = remote.imagenUrl ?: ""
-                    val fixedUrl = if (rawUrl.startsWith("/")) {
-                        BASE_IMAGE_URL + rawUrl
-                    } else {
-                        rawUrl
+                    val pathDesdeBd = remote.imagenUrl ?: ""
+
+                    // --- AQUÍ ESTÁ EL TRUCO ---
+                    // Si empieza con 'content' o 'file', es una foto local del celular -> La dejamos igual.
+                    // Si empieza con 'http', es internet -> La dejamos igual.
+                    // Si no, es una imagen del servidor (/assets) -> Le ponemos el servidor antes.
+
+                    val finalUrl = when {
+                        pathDesdeBd.startsWith("content://") -> pathDesdeBd
+                        pathDesdeBd.startsWith("file://") -> pathDesdeBd
+                        pathDesdeBd.startsWith("http") -> pathDesdeBd
+                        pathDesdeBd.isBlank() -> ""
+                        else -> {
+                            val pathLimpio = if (pathDesdeBd.startsWith("/")) pathDesdeBd else "/$pathDesdeBd"
+                            BASE_IMAGE_URL + pathLimpio
+                        }
                     }
 
                     Product(
@@ -33,7 +44,7 @@ class ProductRepository {
                         name = remote.nombre,
                         description = remote.descripcion ?: "",
                         price = remote.precio.toInt(),
-                        imageUrl = fixedUrl,
+                        imageUrl = finalUrl,
                         category = remote.categoria?.nombre ?: "Sin categoría"
                     )
                 }
@@ -52,7 +63,15 @@ class ProductRepository {
             val response = RetrofitClient.productService.createProduct(request)
             response.isSuccessful
         } catch (e: Exception) {
-            Log.e("ProductRepo", "Error crear: ${e.message}")
+            false
+        }
+    }
+
+    suspend fun deleteProduct(id: Long): Boolean {
+        return try {
+            val response = RetrofitClient.productService.deleteProduct(id)
+            response.isSuccessful
+        } catch (e: Exception) {
             false
         }
     }
@@ -60,6 +79,4 @@ class ProductRepository {
     suspend fun getProductById(id: Long): Product? {
         return getAllProducts().find { it.id == id }
     }
-
-    suspend fun deleteProduct(id: Long): Boolean { return true }
 }

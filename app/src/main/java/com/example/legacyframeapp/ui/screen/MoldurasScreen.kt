@@ -25,19 +25,14 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.example.legacyframeapp.R
 import com.example.legacyframeapp.domain.model.Product
-import com.example.legacyframeapp.ui.components.formatWithThousands
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
-import com.example.legacyframeapp.domain.ImageStorageHelper
-import java.io.File
 
 @Composable
 fun MoldurasScreenVm(
@@ -81,20 +76,12 @@ fun MoldurasScreen(
         }
     ) { innerPadding ->
         if (products.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No hay molduras disponibles.", style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+                Text("No hay molduras disponibles.", color = Color.Gray)
             }
         } else {
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding),
+                modifier = Modifier.fillMaxSize().padding(innerPadding),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -117,14 +104,8 @@ fun MoldurasScreen(
     }
 
     if (fullscreenProduct != null) {
-        Dialog(
-            onDismissRequest = { fullscreenProduct = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            FullscreenImageViewer(
-                product = fullscreenProduct!!,
-                onClose = { fullscreenProduct = null }
-            )
+        Dialog(onDismissRequest = { fullscreenProduct = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            FullscreenImageViewer(product = fullscreenProduct!!, onClose = { fullscreenProduct = null })
         }
     }
 }
@@ -135,20 +116,7 @@ private fun ProductCard(
     onAddToCart: () -> Unit,
     onImageClick: (Product) -> Unit
 ) {
-    val context = LocalContext.current
     val placeholderPainter = rememberVectorPainter(image = Icons.Default.Photo)
-
-    // --- LÓGICA INTELIGENTE DE IMAGEN ---
-    val model: Any? = remember(product.imageUrl) {
-        when {
-            product.imageUrl.startsWith("http") -> product.imageUrl // URL de Internet
-            else -> {
-                // Nombre de recurso local (ej: "moldura1")
-                val resId = context.resources.getIdentifier(product.imageUrl, "drawable", context.packageName)
-                if (resId != 0) resId else null
-            }
-        }
-    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -159,12 +127,11 @@ private fun ProductCard(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // --- IMAGEN DESDE INTERNET ---
             AsyncImage(
-                model = model,
+                model = product.imageUrl, // URL directa
                 contentDescription = product.name,
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(MaterialTheme.shapes.small),
+                modifier = Modifier.size(80.dp).clip(MaterialTheme.shapes.small),
                 contentScale = ContentScale.Crop,
                 placeholder = placeholderPainter,
                 error = placeholderPainter
@@ -179,26 +146,17 @@ private fun ProductCard(
                 val (badgeBg, badgeFg) = categoryColors(product.category)
                 AssistChip(
                     onClick = {},
-                    label = { Text(product.category.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }) },
+                    label = { Text(product.category) },
                     colors = AssistChipDefaults.assistChipColors(containerColor = badgeBg, labelColor = badgeFg)
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(product.description, style = MaterialTheme.typography.bodySmall, maxLines = 3)
                 Spacer(Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = { onImageClick(product) },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer)
-                    ) {
-                        Text("Ver", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-                    }
-                    Button(
-                        onClick = onAddToCart,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32), contentColor = Color.White)
-                    ) {
-                        Icon(Icons.Default.AddShoppingCart, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Carrito", style = MaterialTheme.typography.bodySmall)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { onImageClick(product) }) { Text("Ver") }
+                    Button(onClick = onAddToCart, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2E7D32))) {
+                        Icon(Icons.Default.AddShoppingCart, null, Modifier.size(16.dp))
+                        Text("Carrito")
                     }
                 }
             }
@@ -212,33 +170,19 @@ private fun categoryColors(category: String): Pair<Color, Color> {
         "grecas" -> Color(0xFF8B5C2A) to Color.White
         "rústicas", "rusticas" -> Color(0xFF0DCAF0) to Color(0xFF07323A)
         "naturales" -> Color(0xFF198754) to Color.White
-        "nativas" -> Color(0xFF6C757D) to Color.White
-        "finger-joint", "fingerjoint", "finger_joint" -> Color(0xFFFFC107) to Color(0xFF3A2E00)
         else -> MaterialTheme.colorScheme.secondary to MaterialTheme.colorScheme.onSecondary
     }
 }
 
 @Composable
 private fun FullscreenImageViewer(product: Product, onClose: () -> Unit) {
-    val context = LocalContext.current
     val placeholderPainter = rememberVectorPainter(image = Icons.Default.Photo)
-
-    val model: Any? = remember(product.imageUrl) {
-        when {
-            product.imageUrl.startsWith("http") -> product.imageUrl
-            else -> {
-                val resId = context.resources.getIdentifier(product.imageUrl, "drawable", context.packageName)
-                if (resId != 0) resId else null
-            }
-        }
-    }
-
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.95f))) {
         AsyncImage(
-            model = model,
+            model = product.imageUrl, // URL directa
             contentDescription = product.name,
             modifier = Modifier
                 .fillMaxSize()
@@ -253,10 +197,13 @@ private fun FullscreenImageViewer(product: Product, onClose: () -> Unit) {
             placeholder = placeholderPainter,
             error = placeholderPainter
         )
-        Row(modifier = Modifier.fillMaxWidth().padding(12.dp).align(Alignment.TopEnd), horizontalArrangement = Arrangement.End) {
-            FloatingActionButton(onClick = onClose, containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)) {
-                Icon(Icons.Default.Add, contentDescription = "Cerrar", tint = MaterialTheme.colorScheme.onSurface)
-            }
+        // Botón cerrar
+        FloatingActionButton(
+            onClick = onClose,
+            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Cerrar", modifier = Modifier.graphicsLayer(rotationZ = 45f))
         }
     }
 }

@@ -1,154 +1,87 @@
 package com.example.legacyframeapp.ui.screen
 
-import android.Manifest
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
-import com.example.legacyframeapp.ui.components.AppButton
-import com.example.legacyframeapp.ui.components.ThousandSeparatorTransformation
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
-// --- Stateful Composable (Conecta con ViewModel) ---
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddCuadroScreenVm(
+fun AddCuadroScreen(
     vm: AuthViewModel,
-    onNavigateBack: () -> Unit
+    onBack: () -> Unit
 ) {
     val state by vm.addCuadro.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
-    LaunchedEffect(state.saveSuccess) {
-        if (state.saveSuccess) {
-            vm.clearAddCuadroState()
-            onNavigateBack()
-        }
-    }
+    // URI temporal para la foto de la cámara
+    var tempPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
-    AddCuadroScreen(
-        // Estado
-        title = state.title,
-        description = state.description,
-        price = state.price,
-        size = state.size,
-        material = state.material,
-        category = state.category,
-        imageUri = state.imageUri,
-        titleError = state.titleError,
-        priceError = state.priceError,
-        imageError = state.imageError,
-        isSaving = state.isSaving,
-        canSubmit = state.canSubmit,
-        errorMsg = state.errorMsg,
-
-        // Acciones
-        onTitleChange = { vm.onAddCuadroChange(title = it) },
-        onDescriptionChange = { vm.onAddCuadroChange(description = it) },
-        onPriceChange = { vm.onAddCuadroChange(price = it) },
-        onSizeChange = { vm.onAddCuadroChange(size = it) },
-        onMaterialChange = { vm.onAddCuadroChange(material = it) },
-        onCategoryChange = { vm.onAddCuadroChange(category = it) },
-        onImageSelected = { uri -> vm.onCuadroImageSelected(uri) },
-        onSubmit = { vm.saveCuadro(context) },
-        onBack = onNavigateBack,
-        // CORRECCIÓN: Referencia a la función del ViewModel (asegúrate de haberla agregado en el Paso 1)
-        createTempImageUri = vm::createTempImageUri
-    )
-}
-
-// --- Stateless Composable (Solo UI) ---
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AddCuadroScreen(
-    // Estado
-    title: String, description: String, price: String, size: String,
-    material: String, category: String, imageUri: Uri?,
-    titleError: String?, priceError: String?, imageError: String?,
-    isSaving: Boolean, canSubmit: Boolean, errorMsg: String?,
-    // Acciones
-    onTitleChange: (String) -> Unit,
-    onDescriptionChange: (String) -> Unit,
-    onPriceChange: (String) -> Unit,
-    onSizeChange: (String) -> Unit,
-    onMaterialChange: (String) -> Unit,
-    onCategoryChange: (String) -> Unit,
-    onImageSelected: (Uri?) -> Unit,
-    onSubmit: () -> Unit,
-    onBack: () -> Unit,
-    createTempImageUri: () -> Uri
-) {
-    var tempUri by remember { mutableStateOf<Uri?>(null) }
-
-    // 1. Launcher para Galería (Photo Picker)
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri -> onImageSelected(uri) }
-    )
-
-    // 2. Launcher para Cámara
+    // 1. CÁMARA
     val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture(),
-        onResult = { success -> if (success) onImageSelected(tempUri) }
-    )
-
-    // 3. Permiso solo para la CÁMARA
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                // Si nos dan permiso, creamos el archivo y lanzamos la cámara
-                tempUri = createTempImageUri()
-                cameraLauncher.launch(tempUri!!)
-            }
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && tempPhotoUri != null) {
+            vm.onCuadroImageSelected(tempPhotoUri)
         }
-    )
-
-    // Acciones de los botones
-    val onSelectImageGallery = {
-        photoPickerLauncher.launch(
-            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-        )
     }
 
-    val onCapturePhoto = {
-        // Primero pedimos permiso, y en el callback lanzamos la cámara
-        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+    // 2. GALERÍA
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            vm.onCuadroImageSelected(uri)
+        }
+    }
+
+    // Permisos de Cámara
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            try {
+                tempPhotoUri = vm.createTempImageUri()
+                cameraLauncher.launch(tempPhotoUri!!)
+            } catch (e: Exception) {
+                // AQUÍ ATRAPAMOS EL ERROR SI LA APP SE CIERRA
+                Toast.makeText(context, "Error cámara: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            Toast.makeText(context, "Se requiere permiso de cámara", Toast.LENGTH_SHORT).show()
+        }
     }
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Añadir Nuevo Cuadro") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
-                    }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary
-                )
+            TopAppBar(
+                title = { Text("Nuevo Cuadro") },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Volver") } }
             )
         }
     ) { innerPadding ->
@@ -158,96 +91,133 @@ fun AddCuadroScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // --- Campos del formulario ---
-            OutlinedTextField(
-                value = title, onValueChange = onTitleChange, label = { Text("Título*") },
-                isError = titleError != null, singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                modifier = Modifier.fillMaxWidth()
-            )
-            if (titleError != null) { Text(titleError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall) }
+            Text("Ingresa los datos del cuadro", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
-            OutlinedTextField(
-                value = description, onValueChange = onDescriptionChange, label = { Text("Descripción") },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                modifier = Modifier.fillMaxWidth().height(100.dp)
-            )
-
-            OutlinedTextField(
-                value = price,
-                onValueChange = { newValue ->
-                    if (newValue.all { it.isDigit() } && newValue.length <= 6) {
-                        onPriceChange(newValue)
+            // --- RECUADRO DE IMAGEN ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(1.dp, Color.Gray, RoundedCornerShape(12.dp))
+                    .clickable {
+                        // Al tocar la caja, abrir galería
+                        galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                if (state.imageUri != null) {
+                    AsyncImage(
+                        model = state.imageUri,
+                        contentDescription = "Imagen seleccionada",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.AddAPhoto, null, modifier = Modifier.size(48.dp), tint = Color.Gray)
+                        Text("Toca para elegir imagen", color = Color.Gray)
                     }
-                },
-                label = { Text("Precio (CLP)*") }, isError = priceError != null,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword, imeAction = ImeAction.Next),
-                visualTransformation = ThousandSeparatorTransformation(),
-                modifier = Modifier.fillMaxWidth()
-            )
-            if (priceError != null) { Text(priceError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall) }
-
-            OutlinedTextField(
-                value = size, onValueChange = onSizeChange, label = { Text("Tamaño (ej: 50x70 cm)") },
-                singleLine = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = material, onValueChange = onMaterialChange, label = { Text("Material (ej: Canvas)") },
-                singleLine = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = category, onValueChange = onCategoryChange, label = { Text("Categoría (ej: Paisajes)") },
-                singleLine = true, keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Vista previa y botones de imagen
-            if (imageUri != null) {
-                AsyncImage(
-                    model = imageUri, contentDescription = "Imagen seleccionada",
-                    modifier = Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(Modifier.height(8.dp))
+                }
             }
 
-            // Botones Galería / Cámara
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                OutlinedButton(onClick = onSelectImageGallery, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
-                    Text("Galería")
-                }
-                OutlinedButton(onClick = onCapturePhoto, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Default.PhotoCamera, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+            // BOTONES
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        // Lanzamos con manejo de errores por si falla el FileProvider
+                        try {
+                            permissionLauncher.launch(android.Manifest.permission.CAMERA)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(Icons.Default.AddAPhoto, null)
+                    Spacer(Modifier.width(8.dp))
                     Text("Cámara")
                 }
-            }
-            if (imageError != null) {
-                Text(imageError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+
+                Button(
+                    onClick = {
+                        galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                ) {
+                    Icon(Icons.Default.PhotoLibrary, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Galería")
+                }
             }
 
-            Spacer(Modifier.height(16.dp))
-
-            // Botón Guardar
-            AppButton(
-                onClick = onSubmit,
-                enabled = canSubmit && !isSaving,
+            // --- CAMPOS DE TEXTO ---
+            OutlinedTextField(
+                value = state.title,
+                onValueChange = { vm.onAddCuadroChange(title = it) },
+                label = { Text("Título") },
                 modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = state.artist ?: "",
+                onValueChange = { vm.onAddCuadroChange(artist = it) },
+                label = { Text("Artista / Autor") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = state.description,
+                onValueChange = { vm.onAddCuadroChange(description = it) },
+                label = { Text("Descripción") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = state.size,
+                    onValueChange = { vm.onAddCuadroChange(size = it) },
+                    label = { Text("Tamaño") },
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = state.material,
+                    onValueChange = { vm.onAddCuadroChange(material = it) },
+                    label = { Text("Material") },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            OutlinedTextField(
+                value = state.price,
+                onValueChange = { vm.onAddCuadroChange(price = it) },
+                label = { Text("Precio") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Button(
+                onClick = { vm.saveCuadro(context) },
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                enabled = state.canSubmit && !state.isSaving
             ) {
-                if (isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
+                if (state.isSaving) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
                 } else {
                     Text("Guardar Cuadro")
                 }
             }
 
-            // Mensaje de error global
-            if (errorMsg != null) {
-                Text(errorMsg, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 8.dp))
+            if (state.saveSuccess) {
+                vm.clearAddCuadroState()
+                onBack()
             }
         }
     }
