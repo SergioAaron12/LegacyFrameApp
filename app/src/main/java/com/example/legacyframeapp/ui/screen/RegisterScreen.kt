@@ -1,5 +1,6 @@
 package com.example.legacyframeapp.ui.screen
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,9 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.legacyframeapp.R
 import com.example.legacyframeapp.ui.components.AppButton
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
@@ -127,6 +130,15 @@ private fun RegisterScreen(
                     .verticalScroll(scrollState),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Logo de la App
+                Image(
+                    painter = painterResource(id = R.drawable.splash_logo),
+                    contentDescription = "App Logo",
+                    modifier = Modifier
+                        .size(100.dp)
+                        .padding(bottom = 8.dp)
+                )
+
                 Text("Crear Cuenta", style = MaterialTheme.typography.headlineSmall)
                 Spacer(Modifier.height(16.dp))
 
