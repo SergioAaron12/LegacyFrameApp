@@ -14,13 +14,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.width
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp as dp2
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -67,13 +60,9 @@ fun AppNavGraph(
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     // Cabecera
                     Box(modifier = Modifier.fillMaxWidth().height(150.dp).padding(16.dp), contentAlignment = Alignment.CenterStart) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(painter = painterResource(id = com.example.legacyframeapp.R.mipmap.ic_launcher), contentDescription = "Logo", tint = Color.Unspecified, modifier = Modifier.size(48.dp))
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text("Legacy Frames", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = dynamicColor)
-                                if (session.isLoggedIn) Text("Hola, ${session.currentUser?.nombre}", style = MaterialTheme.typography.bodyMedium)
-                            }
+                        Column {
+                            Text("Legacy Frames", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = dynamicColor)
+                            if (session.isLoggedIn) Text("Hola, ${session.currentUser?.nombre}", style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                     HorizontalDivider()
@@ -120,13 +109,7 @@ fun AppNavGraph(
             topBar = {
                 if (showBars) {
                     CenterAlignedTopAppBar(
-                        title = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(painter = painterResource(id = com.example.legacyframeapp.R.mipmap.ic_launcher), contentDescription = "Logo", tint = Color.Unspecified, modifier = Modifier.size(32.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text("Legacy Frames", fontWeight = FontWeight.Bold, color = Color.White)
-                            }
-                        },
+                        title = { Text("Legacy Frames", fontWeight = FontWeight.Bold, color = Color.White) },
                         navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, null, tint = Color.White) } },
                         actions = { IconButton(onClick = { navController.navigate("cart") }) { Icon(Icons.Default.ShoppingCart, null, tint = Color.White) } },
                         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = dynamicColor)
