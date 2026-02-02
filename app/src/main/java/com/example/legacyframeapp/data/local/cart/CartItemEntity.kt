@@ -5,17 +5,11 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "cart_items")
 data class CartItemEntity(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0L,
-
-    // Identificador del origen del item
-    val type: String,   // "product" | "cuadro"
-    val refId: Long,    // ID del ProductEntity o CuadroEntity
-
-    // Snapshot de datos para mostrar
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val type: String,      // "product" o "cuadro"
+    val refId: Long,       // ID original del producto
     val name: String,
     val price: Int,
-    val imagePath: String? = null,
-
+    val imageUrl: String,  // <--- ESTE ES EL NOMBRE CORRECTO QUE NECESITAMOS
     val quantity: Int = 1
 )

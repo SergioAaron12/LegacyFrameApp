@@ -1,86 +1,84 @@
 package com.example.legacyframeapp.data.local.storage
 
 import android.content.Context
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 
-//extension o elemento para obtener y manipular el Data Store
-val Context.dataStore by preferencesDataStore("user_prefs")
+// Extensión para crear el DataStore (base de datos de preferencias)
+private val Context.dataStore by preferencesDataStore(name = "user_prefs")
 
-class UserPreferences (private val context: Context){
-    //clave boolean para manejar el estado del login
-    private val isLoggedInKey = booleanPreferencesKey("is_logged_key")
-    private val darkModeKey = booleanPreferencesKey("dark_mode_key")
-    private val avatarTypeKey = stringPreferencesKey("avatar_type_key") // "male" | "female"
-    // Nuevas claves de configuración
-    private val themeModeKey = stringPreferencesKey("theme_mode_key") // light | dark | system
-    private val accentColorKey = stringPreferencesKey("accent_color_key") // hex ARGB e.g. #FF8B5C2A
-    private val fontScaleKey = stringPreferencesKey("font_scale_key") // almacenar como String para simplicidad
-    private val notifOffersKey = booleanPreferencesKey("notif_offers_key")
-    private val notifTrackingKey = booleanPreferencesKey("notif_tracking_key")
-    private val notifCartKey = booleanPreferencesKey("notif_cart_key")
-    private val languageKey = stringPreferencesKey("language_key") // es | en | system
+class UserPreferences(private val context: Context) {
 
-    //funcion para setear el valor de la variable
-    suspend fun setLoggedIn(value: Boolean){
-        context.dataStore.edit { prefs ->
-            prefs[isLoggedInKey] = value
-        }
+    // Claves de almacenamiento
+    companion object {
+        val IS_LOGGED_IN = booleanPreferencesKey("is_logged_in")
+        val AUTH_TOKEN = stringPreferencesKey("auth_token")
+        val USER_EMAIL = stringPreferencesKey("user_email")
+
+        // Configuración UI
+        val IS_DARK_MODE = booleanPreferencesKey("is_dark_mode")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
+        val ACCENT_COLOR = stringPreferencesKey("accent_color")
+        val FONT_SCALE = floatPreferencesKey("font_scale")
+
+        // Configuración Notificaciones
+        val NOTIF_OFFERS = booleanPreferencesKey("notif_offers")
+        val NOTIF_TRACKING = booleanPreferencesKey("notif_tracking")
+        val NOTIF_CART = booleanPreferencesKey("notif_cart")
     }
 
-    suspend fun setDarkMode(enabled: Boolean){
-        context.dataStore.edit { prefs ->
-            prefs[darkModeKey] = enabled
-        }
+    // --- FLOWS (Lectura en tiempo real para la UI) ---
+    val isLoggedIn: Flow<Boolean> = context.dataStore.data.map { it[IS_LOGGED_IN] ?: false }
+    val authToken: Flow<String?> = context.dataStore.data.map { it[AUTH_TOKEN] }
+
+    val isDarkMode: Flow<Boolean> = context.dataStore.data.map { it[IS_DARK_MODE] ?: false }
+    val themeMode: Flow<String> = context.dataStore.data.map { it[THEME_MODE] ?: "system" }
+    val accentColor: Flow<String> = context.dataStore.data.map { it[ACCENT_COLOR] ?: "#FF8B5C2A" }
+    val fontScale: Flow<Float> = context.dataStore.data.map { it[FONT_SCALE] ?: 1.0f }
+
+    val notifOffers: Flow<Boolean> = context.dataStore.data.map { it[NOTIF_OFFERS] ?: true }
+    val notifTracking: Flow<Boolean> = context.dataStore.data.map { it[NOTIF_TRACKING] ?: true }
+    val notifCart: Flow<Boolean> = context.dataStore.data.map { it[NOTIF_CART] ?: true }
+
+    // --- FUNCIONES DE GUARDADO (SUSPEND) ---
+
+    suspend fun setLoggedIn(loggedIn: Boolean) {
+        context.dataStore.edit { it[IS_LOGGED_IN] = loggedIn }
     }
 
-    suspend fun setAvatarType(type: String){
-        context.dataStore.edit { prefs ->
-            prefs[avatarTypeKey] = type
-        }
+    suspend fun saveToken(token: String) {
+        context.dataStore.edit { it[AUTH_TOKEN] = token }
     }
-    suspend fun setThemeMode(mode: String){
-        context.dataStore.edit { prefs -> prefs[themeModeKey] = mode }
-    }
-    suspend fun setAccentColor(hex: String){
-        context.dataStore.edit { prefs -> prefs[accentColorKey] = hex }
-    }
-    suspend fun setFontScale(scale: Float){
-        context.dataStore.edit { prefs -> prefs[fontScaleKey] = scale.toString() }
-    }
-    suspend fun setNotifOffers(enabled: Boolean){ context.dataStore.edit { it[notifOffersKey] = enabled } }
-    suspend fun setNotifTracking(enabled: Boolean){ context.dataStore.edit { it[notifTrackingKey] = enabled } }
-    suspend fun setNotifCart(enabled: Boolean){ context.dataStore.edit { it[notifCartKey] = enabled } }
-    suspend fun setLanguage(code: String){ context.dataStore.edit { it[languageKey] = code } }
-    //exposicion del dataStore
-    val isLoggedIn: Flow<Boolean> = context.dataStore.data
-        .map { prefs ->
-            prefs[isLoggedInKey] ?: false
-        }
 
-    val isDarkMode: Flow<Boolean> = context.dataStore.data
-        .map { prefs ->
-            prefs[darkModeKey] ?: false
-        }
+    suspend fun saveEmail(email: String) {
+        context.dataStore.edit { it[USER_EMAIL] = email }
+    }
 
-    // Avatar seleccionado por el usuario (por defecto "male" si no existe)
-    val avatarType: Flow<String> = context.dataStore.data
-        .map { prefs ->
-            prefs[avatarTypeKey] ?: "male"
-        }
+    // --- LECTURA SEGURA (Para usar dentro de corrutinas del ViewModel) ---
+    suspend fun getEmail(): String? {
+        // Usamos firstOrNull() para obtener el valor una vez sin romper el flujo ni cerrar la app
+        return context.dataStore.data.map { it[USER_EMAIL] }.firstOrNull()
+    }
 
-    val themeMode: Flow<String> = context.dataStore.data
-        .map { it[themeModeKey] ?: "system" }
-    val accentColor: Flow<String> = context.dataStore.data
-        .map { it[accentColorKey] ?: "#FF8B5C2A" }
-    val fontScale: Flow<Float> = context.dataStore.data
-        .map { prefs -> prefs[fontScaleKey]?.toFloatOrNull() ?: 1.0f }
-    val notifOffers: Flow<Boolean> = context.dataStore.data.map { it[notifOffersKey] ?: true }
-    val notifTracking: Flow<Boolean> = context.dataStore.data.map { it[notifTrackingKey] ?: true }
-    val notifCart: Flow<Boolean> = context.dataStore.data.map { it[notifCartKey] ?: true }
-    val language: Flow<String> = context.dataStore.data.map { it[languageKey] ?: "system" }
+    // Configuración UI
+    suspend fun setThemeMode(mode: String) { context.dataStore.edit { it[THEME_MODE] = mode } }
+    suspend fun setAccentColor(color: String) { context.dataStore.edit { it[ACCENT_COLOR] = color } }
+    suspend fun setFontScale(scale: Float) { context.dataStore.edit { it[FONT_SCALE] = scale } }
+
+    suspend fun setNotifOffers(enabled: Boolean) { context.dataStore.edit { it[NOTIF_OFFERS] = enabled } }
+    suspend fun setNotifTracking(enabled: Boolean) { context.dataStore.edit { it[NOTIF_TRACKING] = enabled } }
+    suspend fun setNotifCart(enabled: Boolean) { context.dataStore.edit { it[NOTIF_CART] = enabled } }
+
+    // --- LIMPIAR DATOS (LOGOUT) ---
+    suspend fun clear() {
+        context.dataStore.edit {
+            it.remove(IS_LOGGED_IN)
+            it.remove(AUTH_TOKEN)
+            it.remove(USER_EMAIL)
+            // No borramos preferencias de tema para mantener la experiencia
+        }
+    }
 }

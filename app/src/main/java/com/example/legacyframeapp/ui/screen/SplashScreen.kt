@@ -10,9 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 
 @Composable
@@ -29,14 +27,6 @@ fun SplashScreen(onFinished: () -> Unit) {
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
-        // Imagen estática desde assets a pantalla completa.
-        AsyncImage(
-            model = "file:///android_asset/splash.png",
-            contentDescription = "Splash imagen",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
-
         // Indicador de carga girando en la parte inferior
         CircularProgressIndicator(
             modifier = Modifier

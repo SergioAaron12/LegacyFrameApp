@@ -1,312 +1,156 @@
 package com.example.legacyframeapp.ui.screen
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.*
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.legacyframeapp.R
-import com.example.legacyframeapp.ui.components.AppButton
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
-// --- Stateful Composable ---
 @Composable
-fun RegisterScreenVm(
+fun RegisterScreen(
     vm: AuthViewModel,
-    onRegisteredNavigateLogin: () -> Unit,
+    onRegisterSuccess: () -> Unit,
     onGoLogin: () -> Unit
 ) {
+    // Observamos el estado del registro desde el ViewModel
     val state by vm.register.collectAsStateWithLifecycle()
+
+    // Efecto: Si el registro es exitoso, navegamos al Login
     LaunchedEffect(state.success) {
         if (state.success) {
             vm.clearRegisterResult()
-            onRegisteredNavigateLogin()
+            onRegisterSuccess()
         }
     }
-    RegisterScreen(
-        nombre = state.nombre,
-        apellido = state.apellido,
-        rut = state.rut,
-        dv = state.dv,
-        email = state.email,
-        phone = state.phone,
-        pass = state.pass,
-        confirm = state.confirm,
-        nombreError = state.nombreError,
-        apellidoError = state.apellidoError,
-        rutError = state.rutError,
-        dvError = state.dvError,
-        emailError = state.emailError,
-        phoneError = state.phoneError,
-        passError = state.passError,
-        confirmError = state.confirmError,
-        canSubmit = state.canSubmit,
-        isSubmitting = state.isSubmitting,
-        errorMsg = state.errorMsg,
-        onNombreChange = vm::onRegisterNombreChange,
-        onApellidoChange = vm::onRegisterApellidoChange,
-        onRutChange = vm::onRegisterRutChange,
-        onDvChange = vm::onRegisterDvChange,
-        onEmailChange = vm::onRegisterEmailChange,
-        onPhoneChange = vm::onRegisterPhoneChange,
-        onPassChange = vm::onRegisterPassChange,
-        onConfirmChange = vm::onRegisterConfirmChange,
-        onSubmit = vm::submitRegister,
-        onGoLogin = onGoLogin
-    )
-}
 
-// --- Stateless/Presentational Composable ---
-@Composable
-private fun RegisterScreen(
-    nombre: String,
-    apellido: String,
-    rut: String,
-    dv: String,
-    email: String,
-    phone: String,
-    pass: String,
-    confirm: String,
-    nombreError: String?,
-    apellidoError: String?,
-    rutError: String?,
-    dvError: String?,
-    emailError: String?,
-    phoneError: String?,
-    passError: String?,
-    confirmError: String?,
-    canSubmit: Boolean,
-    isSubmitting: Boolean,
-    errorMsg: String?,
-    onNombreChange: (String) -> Unit,
-    onApellidoChange: (String) -> Unit,
-    onRutChange: (String) -> Unit,
-    onDvChange: (String) -> Unit,
-    onEmailChange: (String) -> Unit,
-    onPhoneChange: (String) -> Unit,
-    onPassChange: (String) -> Unit,
-    onConfirmChange: (String) -> Unit,
-    onSubmit: () -> Unit,
-    onGoLogin: () -> Unit
-) {
-    var showPass by remember { mutableStateOf(false) }
-    var showConfirm by remember { mutableStateOf(false) }
-    val scrollState = rememberScrollState()
-
-    // --- NUEVA ESTRUCTURA ---
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            // =====> CAMBIO 1: Fondo de color café claro
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp), // Padding para que la tarjeta no toque los bordes
-        contentAlignment = Alignment.Center
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()), // Scroll por si la pantalla es chica
+        verticalArrangement = Arrangement.Center
     ) {
+        Text("Crear Cuenta", style = MaterialTheme.typography.headlineLarge)
 
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.9f),
-            // =====> CAMBIO 2: Color blanco opaco
-            color = MaterialTheme.colorScheme.surface,
-            shape = MaterialTheme.shapes.medium,
-            shadowElevation = 8.dp
+        Spacer(Modifier.height(24.dp))
+
+        // --- CAMPOS DE FORMULARIO ---
+
+        OutlinedTextField(
+            value = state.nombre,
+            onValueChange = { vm.onRegisterNombreChange(it) },
+            label = { Text("Nombre") },
+            modifier = Modifier.fillMaxWidth(),
+            isError = state.nombreError != null,
+            supportingText = { state.nombreError?.let { Text(it) } }
+        )
+
+        OutlinedTextField(
+            value = state.apellido,
+            onValueChange = { vm.onRegisterApellidoChange(it) },
+            label = { Text("Apellido") },
+            modifier = Modifier.fillMaxWidth(),
+            isError = state.apellidoError != null,
+            supportingText = { state.apellidoError?.let { Text(it) } }
+        )
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = state.rut,
+                onValueChange = { vm.onRegisterRutChange(it) },
+                label = { Text("RUT (Sin puntos)") },
+                modifier = Modifier.weight(0.7f),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                isError = state.rutError != null,
+                supportingText = { state.rutError?.let { Text(it) } }
+            )
+            OutlinedTextField(
+                value = state.dv,
+                onValueChange = { vm.onRegisterDvChange(it) },
+                label = { Text("DV") },
+                modifier = Modifier.weight(0.3f),
+                isError = state.dvError != null
+            )
+        }
+
+        OutlinedTextField(
+            value = state.email,
+            onValueChange = { vm.onRegisterEmailChange(it) },
+            label = { Text("Correo Electrónico") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            isError = state.emailError != null,
+            supportingText = { state.emailError?.let { Text(it) } }
+        )
+
+        OutlinedTextField(
+            value = state.phone,
+            onValueChange = { vm.onRegisterPhoneChange(it) },
+            label = { Text("Teléfono") },
+            modifier = Modifier.fillMaxWidth(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+            isError = state.phoneError != null,
+            supportingText = { state.phoneError?.let { Text(it) } }
+        )
+
+        OutlinedTextField(
+            value = state.pass,
+            onValueChange = { vm.onRegisterPassChange(it) },
+            label = { Text("Contraseña") },
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = PasswordVisualTransformation(),
+            isError = state.passError != null,
+            supportingText = { state.passError?.let { Text(it) } }
+        )
+
+        OutlinedTextField(
+            value = state.confirm,
+            onValueChange = { vm.onRegisterConfirmChange(it) },
+            label = { Text("Confirmar Contraseña") },
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = PasswordVisualTransformation(),
+            isError = state.confirmError != null,
+            supportingText = { state.confirmError?.let { Text(it) } }
+        )
+
+        if (state.errorMsg != null) {
+            Text(
+                text = state.errorMsg!!,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        // --- BOTONES ---
+
+        Button(
+            onClick = { vm.submitRegister() },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            enabled = state.canSubmit && !state.isSubmitting
         ) {
-            // 3. Contenido del Formulario (la columna que ya tenías)
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .verticalScroll(scrollState),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Logo de la App
-                Image(
-                    painter = painterResource(id = R.drawable.splash_logo),
-                    contentDescription = "App Logo",
-                    modifier = Modifier
-                        .size(100.dp)
-                        .padding(bottom = 8.dp)
-                )
-
-                Text("Crear Cuenta", style = MaterialTheme.typography.headlineSmall)
-                Spacer(Modifier.height(16.dp))
-
-                // --- CAMPO NOMBRE ---
-                OutlinedTextField(
-                    value = nombre,
-                    onValueChange = onNombreChange,
-                    label = { Text("Nombre") },
-                    isError = nombreError != null,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (nombreError != null) {
-                    Text(nombreError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                }
-                Spacer(Modifier.height(8.dp))
-
-                // --- CAMPO APELLIDO ---
-                OutlinedTextField(
-                    value = apellido,
-                    onValueChange = onApellidoChange,
-                    label = { Text("Apellido (Opcional)") },
-                    isError = apellidoError != null,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (apellidoError != null) {
-                    Text(apellidoError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                }
-                Spacer(Modifier.height(8.dp))
-
-                // --- CAMPOS RUT y DV ---
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Column(modifier = Modifier.weight(0.75f)) {
-                        OutlinedTextField(
-                            value = rut,
-                            onValueChange = onRutChange,
-                            label = { Text("RUT (sin DV)") },
-                            isError = rutError != null,
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        if (rutError != null) {
-                            Text(rutError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                    Column(modifier = Modifier.weight(0.25f)) {
-                        OutlinedTextField(
-                            value = dv,
-                            onValueChange = onDvChange,
-                            label = { Text("DV") },
-                            isError = dvError != null,
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        if (dvError != null) {
-                            Text(dvError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-
-                // --- CAMPO EMAIL ---
-                    // --- CORREO ---
-                    OutlinedTextField(
-                        value = email,
-                        onValueChange = onEmailChange,
-                        label = { Text("Correo") },
-                    isError = emailError != null,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (emailError != null) {
-                    Text(emailError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                }
-                Spacer(Modifier.height(8.dp))
-
-                // --- CAMPO TELÉFONO ---
-                OutlinedTextField(
-                    value = phone,
-                    onValueChange = onPhoneChange,
-                    label = { Text("Teléfono") },
-                    isError = phoneError != null,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (phoneError != null) {
-                    Text(phoneError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                }
-                Spacer(Modifier.height(8.dp))
-
-                // --- CAMPO CONTRASEÑA ---
-                OutlinedTextField(
-                    value = pass,
-                    onValueChange = onPassChange,
-                    label = { Text("Contraseña") },
-                    isError = passError != null,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showPass = !showPass }) {
-                            Icon(if (showPass) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, "show password")
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (passError != null) {
-                    Text(passError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                }
-                Spacer(Modifier.height(8.dp))
-
-                // --- CAMPO CONFIRMAR CONTRASEÑA ---
-                OutlinedTextField(
-                    value = confirm,
-                    onValueChange = onConfirmChange,
-                    label = { Text("Confirmar Contraseña") },
-                    isError = confirmError != null,
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                    visualTransformation = if (showConfirm) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showConfirm = !showConfirm }) {
-                            Icon(if (showConfirm) Icons.Filled.VisibilityOff else Icons.Filled.Visibility, "show confirm password")
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (confirmError != null) {
-                    Text(confirmError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                }
-                Spacer(Modifier.height(16.dp))
-
-                // --- BOTÓN REGISTRAR ---
-                AppButton(
-                    onClick = onSubmit,
-                    enabled = canSubmit && !isSubmitting,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (isSubmitting) {
-                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Creando cuenta...")
-                    } else {
-                        Text("Registrar")
-                    }
-                }
-
-                // Mensaje de error global
-                if (errorMsg != null) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(errorMsg, color = MaterialTheme.colorScheme.error)
-                }
-                Spacer(Modifier.height(12.dp))
-
-                // --- BOTÓN IR A LOGIN ---
-                OutlinedButton(onClick = onGoLogin, modifier = Modifier.fillMaxWidth()) {
-                    Text("¿Ya tienes cuenta? Ir a Iniciar Sesión")
-                }
+            if (state.isSubmitting) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+            } else {
+                Text("Registrarse")
             }
+        }
+
+        TextButton(
+            onClick = onGoLogin,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("¿Ya tienes cuenta? Inicia sesión")
         }
     }
 }

@@ -9,9 +9,6 @@ import java.io.IOException
 object ImageStorageHelper {
 
     /**
-     * Copia una imagen desde un Uri (Galería) al almacenamiento interno de la app.
-     * Se ejecuta en el hilo de IO (Entrada/Salida).
-     *
      * @param context Contexto de la aplicación.
      * @param uri El Uri de la imagen seleccionada (ej: "content://...")
      * @return El nombre único del archivo guardado (ej: "product_1678886400.jpg")

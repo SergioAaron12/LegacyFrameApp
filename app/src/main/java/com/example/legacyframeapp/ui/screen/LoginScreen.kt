@@ -1,188 +1,75 @@
 package com.example.legacyframeapp.ui.screen
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.*
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.legacyframeapp.R
-import com.example.legacyframeapp.ui.components.AppButton
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
-// --- Stateful Composable (SIN CAMBIOS) ---
 @Composable
-fun LoginScreenVm(
+fun LoginScreen(
     vm: AuthViewModel,
-    onLoginOkNavigateHome: () -> Unit,
-    onGoRegister: () -> Unit,
-    onGoResetPassword: () -> Unit = {}
+    onLoginSuccess: () -> Unit,
+    onGoRegister: () -> Unit
 ) {
     val state by vm.login.collectAsStateWithLifecycle()
 
-    LaunchedEffect(state.success) { // <-- Añadido LaunchedEffect para manejar navegación
+    // Si el login es exitoso, navegamos
+    LaunchedEffect(state.success) {
         if (state.success) {
             vm.clearLoginResult()
-            onLoginOkNavigateHome()
+            onLoginSuccess()
         }
     }
 
-    LoginScreen(
-        email = state.email,
-        pass = state.pass,
-        emailError = state.emailError,
-        passError = state.passError,
-        canSubmit = state.canSubmit,
-        isSubmitting = state.isSubmitting,
-        errorMsg = state.errorMsg,
-        onEmailChange = vm::onLoginEmailChange,
-        onPassChange = vm::onLoginPassChange,
-        onSubmit = vm::submitLogin,
-        onGoRegister = onGoRegister,
-        onGoResetPassword = onGoResetPassword
-    )
-}
-
-// --- Stateless/Presentational Composable ---
-@Composable
-private fun LoginScreen(
-    email: String,
-    pass: String,
-    emailError: String?,
-    passError: String?,
-    canSubmit: Boolean,
-    isSubmitting: Boolean,
-    errorMsg: String?,
-    onEmailChange: (String) -> Unit,
-    onPassChange: (String) -> Unit,
-    onSubmit: () -> Unit,
-    onGoRegister: () -> Unit,
-    onGoResetPassword: () -> Unit
-) {
-    var showPass by remember { mutableStateOf(false) }
-    val scrollState = rememberScrollState()
-
-    // --- ESTRUCTURA ---
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            // =====> CAMBIO 1: Fondo de color café claro <=====
-            .background(MaterialTheme.colorScheme.background)
-            .padding(16.dp), // Padding para que la tarjeta no toque los bordes
-        contentAlignment = Alignment.Center
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center
     ) {
+        Text("Iniciar Sesión", style = MaterialTheme.typography.headlineLarge)
+        Spacer(Modifier.height(24.dp))
 
+        OutlinedTextField(
+            value = state.email,
+            onValueChange = { vm.onLoginEmailChange(it) },
+            label = { Text("Correo") },
+            modifier = Modifier.fillMaxWidth(),
+            isError = state.errorMsg != null
+        )
 
-        // Tarjeta de Formulario
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.9f), // Ocupa el 90% del ancho
-            // =====> CAMBIO 2: Color blanco opaco
-            color = MaterialTheme.colorScheme.surface,
-            shape = MaterialTheme.shapes.medium,
-            shadowElevation = 8.dp
+        Spacer(Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = state.pass,
+            onValueChange = { vm.onLoginPassChange(it) },
+            label = { Text("Contraseña") },
+            modifier = Modifier.fillMaxWidth(),
+            visualTransformation = PasswordVisualTransformation(),
+            isError = state.errorMsg != null
+        )
+
+        if (state.errorMsg != null) {
+            Text(state.errorMsg!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(vertical = 8.dp))
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        Button(
+            onClick = { vm.submitLogin() },
+            modifier = Modifier.fillMaxWidth().height(50.dp),
+            enabled = state.canSubmit && !state.isSubmitting
         ) {
-            // Contenido del Formulario
-            Column(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .verticalScroll(scrollState),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // Logo de la App
-                Image(
-                    painter = painterResource(id = R.drawable.splash_logo),
-                    contentDescription = "App Logo",
-                    modifier = Modifier
-                        .size(120.dp)
-                        .padding(bottom = 16.dp)
-                )
+            if (state.isSubmitting) CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary)
+            else Text("Ingresar")
+        }
 
-                Text(
-                    text = "Iniciar Sesión",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Spacer(Modifier.height(16.dp))
-
-                // --- EMAIL ---
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = onEmailChange,
-                    label = { Text("Correo") },
-                    singleLine = true,
-                    isError = emailError != null,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (emailError != null) {
-                    Text(emailError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                }
-                Spacer(Modifier.height(8.dp))
-
-                // --- PASSWORD ---
-                OutlinedTextField(
-                    value = pass,
-                    onValueChange = onPassChange,
-                    label = { Text("Contraseña") },
-                    singleLine = true,
-                    isError = passError != null,
-                    visualTransformation = if (showPass) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { showPass = !showPass }) {
-                            Icon(
-                                imageVector = if (showPass) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                contentDescription = if (showPass) "Ocultar" else "Mostrar"
-                            )
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                if (passError != null) {
-                    Text(passError, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-                }
-                Spacer(Modifier.height(16.dp))
-
-                // --- BOTÓN ENTRAR ---
-                            AppButton(
-                    onClick = onSubmit,
-                    enabled = canSubmit && !isSubmitting,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (isSubmitting) {
-                        CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Validando...")
-                    } else {
-                        Text("Entrar")
-                    }
-                }
-
-                if (errorMsg != null) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(errorMsg, color = MaterialTheme.colorScheme.error)
-                }
-                Spacer(Modifier.height(12.dp))
-
-                // --- BOTÓN IR A REGISTRO ---
-                OutlinedButton(onClick = onGoRegister, modifier = Modifier.fillMaxWidth()) {
-                    Text("Crear cuenta")
-                }
-
-                TextButton(onClick = onGoResetPassword) {
-                    Text("¿Olvidaste tu contraseña?")
-                }
-            }
+        TextButton(onClick = onGoRegister, modifier = Modifier.fillMaxWidth()) {
+            Text("¿No tienes cuenta? Regístrate")
         }
     }
 }

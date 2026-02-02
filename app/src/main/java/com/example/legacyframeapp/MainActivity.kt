@@ -9,97 +9,66 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.example.legacyframeapp.ui.theme.UINavegacionTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.rememberNavController
-import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.example.legacyframeapp.data.local.database.AppDatabase
-import com.example.legacyframeapp.data.repository.UserRepository
 import com.example.legacyframeapp.navegation.AppNavGraph
+import com.example.legacyframeapp.ui.theme.UINavegacionTheme
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
-import com.example.legacyframeapp.ui.viewmodel.AuthViewModelFactory
-import com.example.legacyframeapp.data.repository.ProductRepository
-import com.example.legacyframeapp.data.repository.CuadroRepository
-import com.example.legacyframeapp.data.repository.CartRepository
-import com.example.legacyframeapp.data.local.storage.UserPreferences
-import com.example.legacyframeapp.data.repository.OrderRepository
-
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // --- para el canal de notificación ---
+        // Crear el canal de notificaciones para las compras
         createNotificationChannel(this)
 
+        val appContainer = (application as LegacyFrameApplication).container
+
         setContent {
-            AppRoot()
+            AppRoot(appContainer.authViewModelFactory)
         }
     }
 }
 
 @Composable
-fun AppRoot() {
-    val context = LocalContext.current
+fun AppRoot(authViewModelFactory: com.example.legacyframeapp.ui.viewmodel.AuthViewModelFactory) {
+    // 4. Crear el ViewModel usando la Factory
+    val authViewModel: AuthViewModel = viewModel(factory = authViewModelFactory)
 
-    // --- 3. OBTENER APPLICATION ---
-    val application = context.applicationContext as Application
-
-    val db = AppDatabase.getDatabase(context)
-
-    // DAOs y Repos
-    val userDao = db.userDao()
-    val userRepository = UserRepository(userDao)
-    val productDao = db.productDao()
-    val productRepository = ProductRepository(productDao)
-    val cuadroDao = db.cuadroDao()
-    val cuadroRepository = CuadroRepository(cuadroDao)
-    val cartDao = db.cartDao()
-    val cartRepository = CartRepository(cartDao)
-
-    val userPrefs = UserPreferences(context)
-
-    // Repositorio de órdenes (historial de compras)
-    val orderDao = try { db.orderDao() } catch (e: Exception) { null }
-    val orderRepository = orderDao?.let { OrderRepository(it) }
-
-    // Crea el ViewModel usando la Factory
-    val authViewModel: AuthViewModel = viewModel(
-        factory = AuthViewModelFactory(
-            application = application,
-            userRepository = userRepository,
-            productRepository = productRepository,
-            cuadroRepository = cuadroRepository,
-            cartRepository = cartRepository,
-            userPreferences = userPrefs,
-            orderRepository = orderRepository
-        )
-    )
-
+    // 5. Configurar Navegación y Tema
     val navController = rememberNavController()
 
+    // Observar estados de preferencias para el tema dinámico
     val darkMode by authViewModel.darkMode.collectAsStateWithLifecycle()
     val themeMode by authViewModel.themeMode.collectAsStateWithLifecycle()
     val accentHex by authViewModel.accentColor.collectAsStateWithLifecycle()
     val fontScale by authViewModel.fontScale.collectAsStateWithLifecycle()
-    val resolvedDark = when(themeMode){
+
+    // Resolver si usar tema oscuro o claro según configuración
+    val resolvedDark = when (themeMode) {
         "light" -> false
         "dark" -> true
-        else -> darkMode // system fallback: usar flujo existente
+        else -> darkMode // "system" usa la configuración del sistema (darkMode)
     }
-    UINavegacionTheme(darkTheme = resolvedDark, accentHex = accentHex, fontScale = fontScale) {
+
+    UINavegacionTheme(
+        darkTheme = resolvedDark,
+        accentHex = accentHex,
+        fontScale = fontScale
+    ) {
         Surface(color = MaterialTheme.colorScheme.background) {
-            // Prefetch de imágenes
-            LaunchedEffect(Unit) {
-                authViewModel.prefetchProductImages(context.applicationContext)
-            }
+
+            // --- AQUÍ QUITAMOS LA LLAMADA QUE DABA ERROR ---
+            // Ya no es necesario llamar a prefetchProductImages
+
+            // Iniciar el Grafo de Navegación
             AppNavGraph(
                 navController = navController,
                 authViewModel = authViewModel
@@ -108,7 +77,7 @@ fun AppRoot() {
     }
 }
 
-
+// Función auxiliar para crear el canal de notificaciones (Android 8.0+)
 private fun createNotificationChannel(context: Context) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
         val channelId = "purchase_notifications"

@@ -52,7 +52,7 @@ fun ChangeProductImageScreenVm(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
         if (uri != null && selectedId != 0L) {
-            vm.updateProductImage(context, selectedId, uri) { ok, err ->
+            vm.updateProductImage(context, selectedId.toString(), uri) { ok, err ->
                 if (ok) {
                     Toast.makeText(context, "Imagen actualizada", Toast.LENGTH_SHORT).show()
                     onNavigateBack()
@@ -68,7 +68,7 @@ fun ChangeProductImageScreenVm(
         onSearchChange = { query ->
             selectedName = query
             val found = products.firstOrNull { it.name.equals(query, ignoreCase = true) }
-            selectedId = found?.id ?: 0L
+            selectedId = found?.id?.toLong() ?: 0L
         },
         onPickImage = { pickImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
         onBack = onNavigateBack

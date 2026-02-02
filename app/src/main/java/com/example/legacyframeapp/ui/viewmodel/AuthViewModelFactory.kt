@@ -3,12 +3,10 @@ package com.example.legacyframeapp.ui.viewmodel
 import android.app.Application
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.example.legacyframeapp.data.repository.UserRepository
-import com.example.legacyframeapp.data.repository.ProductRepository
-import com.example.legacyframeapp.data.repository.CuadroRepository
-import com.example.legacyframeapp.data.repository.CartRepository
 import com.example.legacyframeapp.data.local.storage.UserPreferences
-import com.example.legacyframeapp.data.repository.OrderRepository
+import com.example.legacyframeapp.data.repository.*
+import com.example.legacyframeapp.domain.repository.CuadroRepository
+import com.example.legacyframeapp.domain.repository.ProductRepository
 
 class AuthViewModelFactory(
     private val application: Application,
@@ -17,23 +15,23 @@ class AuthViewModelFactory(
     private val cuadroRepository: CuadroRepository,
     private val cartRepository: CartRepository,
     private val userPreferences: UserPreferences,
-    private val orderRepository: OrderRepository?
+    private val orderRepository: OrderRepository?,
+    private val contactRepository: ContactRepository
 ) : ViewModelProvider.Factory {
-
-    @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(AuthViewModel::class.java)) {
-            // Pasamos los 4 repositorios Y la aplicación
+            @Suppress("UNCHECKED_CAST")
             return AuthViewModel(
-                application = application,
-                userRepository = userRepository,
-                productRepository = productRepository,
-                cuadroRepository = cuadroRepository,
-                cartRepository = cartRepository,
-                userPreferences = userPreferences,
-                orderRepository = orderRepository
+                application,
+                userRepository,
+                productRepository,
+                cuadroRepository,
+                cartRepository,
+                userPreferences,
+                orderRepository,
+                contactRepository
             ) as T
         }
-        throw IllegalArgumentException("Unknown ViewModel class: ${modelClass.name}")
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

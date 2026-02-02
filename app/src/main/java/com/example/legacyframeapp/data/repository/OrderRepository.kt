@@ -1,10 +1,45 @@
 package com.example.legacyframeapp.data.repository
 
-import com.example.legacyframeapp.data.local.order.OrderDao
-import com.example.legacyframeapp.data.local.order.OrderEntity
-import kotlinx.coroutines.flow.Flow
+import android.util.Log
+import com.example.legacyframeapp.data.network.OrderApiService
+import com.example.legacyframeapp.data.network.model.OrderRequest
+import com.example.legacyframeapp.domain.model.Order
 
-class OrderRepository(private val dao: OrderDao) {
-    suspend fun insert(order: OrderEntity) = dao.insert(order)
-    fun getAll(): Flow<List<OrderEntity>> = dao.getAll()
+class OrderRepository(private val apiService: OrderApiService) {
+
+    suspend fun createOrder(email: String, request: OrderRequest): Result<Boolean> {
+        return try {
+            val response = apiService.createOrder(email, request)
+            if (response.isSuccessful) Result.success(true)
+            else Result.failure(Exception("Error: ${response.code()}"))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getMyOrders(email: String): List<Order> {
+        return try {
+            val response = apiService.getMyOrders(email)
+            if (response.isSuccessful) {
+                val remotes = response.body() ?: emptyList()
+                remotes.map { remote ->
+                    val resumen = remote.detalles?.joinToString("\n") {
+                        "- ${it.nombreProducto} x${it.cantidad}"
+                    } ?: "Sin detalles"
+
+                    Order(
+                        id = remote.id,
+                        dateMillis = System.currentTimeMillis(),
+                        itemsText = resumen,
+                        total = remote.total.toInt()
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e("OrderRepo", "Error historial: ${e.message}")
+            emptyList()
+        }
+    }
 }

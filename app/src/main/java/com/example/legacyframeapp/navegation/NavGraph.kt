@@ -1,320 +1,177 @@
 package com.example.legacyframeapp.navegation
 
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.compose.runtime.LaunchedEffect
-import com.example.legacyframeapp.ui.components.AppBottomBar
-import com.example.legacyframeapp.ui.components.AppDrawer
-import com.example.legacyframeapp.ui.components.AppTopBar
-import com.example.legacyframeapp.ui.components.loggedInDrawerItems
-import com.example.legacyframeapp.ui.components.loggedOutDrawerItems
-import com.example.legacyframeapp.ui.screen.AddCuadroScreenVm
-import com.example.legacyframeapp.ui.screen.AddProductScreenVm
-import com.example.legacyframeapp.ui.screen.AdminScreenVm
-import com.example.legacyframeapp.ui.screen.CartScreenVm
-import com.example.legacyframeapp.ui.screen.ChangeProductImageScreenVm
-import com.example.legacyframeapp.ui.screen.ContactScreen
-import com.example.legacyframeapp.ui.screen.CuadrosScreenVm
-import com.example.legacyframeapp.ui.screen.DeleteCuadroScreenVm
-import com.example.legacyframeapp.ui.screen.DeleteProductScreenVm
-import com.example.legacyframeapp.ui.screen.HomeScreen
-import com.example.legacyframeapp.ui.screen.LoginScreenVm
-import com.example.legacyframeapp.ui.screen.MoldurasScreenVm
-import com.example.legacyframeapp.ui.screen.ProfileScreenVm
-import com.example.legacyframeapp.ui.screen.PurchasesScreenVm
-import com.example.legacyframeapp.ui.screen.RegisterScreenVm
-import com.example.legacyframeapp.ui.screen.SettingsScreenVm
-import com.example.legacyframeapp.ui.screen.TermsScreen
-import com.example.legacyframeapp.ui.screen.ResetPasswordScreenVm
+import com.example.legacyframeapp.ui.screen.*
 import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 import kotlinx.coroutines.launch
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
+// Items de la barra inferior (Solo usuario normal)
+sealed class Screen(val route: String, val label: String, val iconFilled: ImageVector, val iconOutlined: ImageVector) {
+    object Home : Screen("home", "Inicio", Icons.Filled.Home, Icons.Outlined.Home)
+    object Cart : Screen("cart", "Carrito", Icons.Filled.ShoppingCart, Icons.Outlined.ShoppingCart)
+    object Profile : Screen("profile", "Perfil", Icons.Filled.Person, Icons.Outlined.Person)
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
     authViewModel: AuthViewModel
 ) {
-    // Estados compartidos del ViewModel: sesión, carrito y productos (para Home)
-    val session by authViewModel.session.collectAsStateWithLifecycle()
-    val cartItemCount by authViewModel.cartItemCount.collectAsStateWithLifecycle()
-    val products by authViewModel.products.collectAsStateWithLifecycle()
-
-    // Estado y alcance del Drawer lateral
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val session by authViewModel.session.collectAsStateWithLifecycle()
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+    val currentRoute = currentDestination?.route
 
-    // Acciones de navegación reutilizables
-    val goHome: () -> Unit = {
-        navController.navigate(Route.Home.path) { launchSingleTop = true }
-    }
-    val goLogin: () -> Unit = {
-        navController.navigate(Route.Login.path) { launchSingleTop = true }
-    }
-    val goRegister: () -> Unit = {
-        navController.navigate(Route.Register.path) { launchSingleTop = true }
-    }
-    val goProfile: () -> Unit = {
-        navController.navigate(Route.Profile.path) { launchSingleTop = true }
-    }
-    val goMolduras: () -> Unit = {
-        navController.navigate(Route.Molduras.path) { launchSingleTop = true }
-    }
-    val goCuadros: () -> Unit = {
-        navController.navigate(Route.Cuadros.path) { launchSingleTop = true }
-    }
-    val goCart: () -> Unit = {
-        navController.navigate(Route.Cart.path) { launchSingleTop = true }
-    }
-    val goContact: () -> Unit = {
-        navController.navigate(Route.Contact.path) { launchSingleTop = true }
-    }
-    val goAdmin: () -> Unit = {
-        navController.navigate(Route.Admin.path) { launchSingleTop = true }
-    }
-    val goChangeProductImage: () -> Unit = {
-        navController.navigate(Route.ChangeProductImage.path) { launchSingleTop = true }
-    }
-    val goDeleteProduct: () -> Unit = {
-        navController.navigate(Route.DeleteProduct.path) { launchSingleTop = true }
-    }
-    val goDeleteCuadro: () -> Unit = {
-        navController.navigate(Route.DeleteCuadro.path) { launchSingleTop = true }
-    }
-    val goAddProduct: () -> Unit = {
-        navController.navigate(Route.AddProduct.path) { launchSingleTop = true }
-    }
-    val goAddCuadro: () -> Unit = {
-        navController.navigate(Route.AddCuadro.path) { launchSingleTop = true }
-    }
-    val goSettings: () -> Unit = {
-        navController.navigate(Route.Settings.path) { launchSingleTop = true }
-    }
-    val goBack: () -> Unit = { navController.popBackStack() }
+    // Color Dinámico
+    val accentHex by authViewModel.accentColor.collectAsStateWithLifecycle()
+    val dynamicColor = try { Color(android.graphics.Color.parseColor(accentHex)) } catch (e: Exception) { Color(0xFF8B5C2A) }
 
-    val doLogout: () -> Unit = {
-        authViewModel.logout()
-        goLogin()
-    }
-
-    val openDrawer: () -> Unit = { scope.launch { drawerState.open() } }
-    val closeDrawer: () -> Unit = { scope.launch { drawerState.close() } }
+    // Ocultar barras en pantallas de "trámite"
+    val showBars = currentRoute !in listOf("login", "register", "add_product", "add_cuadro", "delete_product", "delete_cuadro")
 
     ModalNavigationDrawer(
         drawerState = drawerState,
+        gesturesEnabled = showBars,
         drawerContent = {
-            if (session.isLoggedIn) {
-                AppDrawer(
-                    currentRoute = null,
-                    items = loggedInDrawerItems(
-                        onHome = { closeDrawer(); goHome() },
-                        onMolduras = { closeDrawer(); goMolduras() },
-                        onCuadros = { closeDrawer(); goCuadros() },
-                        onCart = { closeDrawer(); goCart() },
-                        onAdmin = if (session.isAdmin) ({ closeDrawer(); goAdmin() }) else null,
-                        onLogout = { closeDrawer(); doLogout() }
-                    )
-                )
-            } else {
-                AppDrawer(
-                    currentRoute = null,
-                    items = loggedOutDrawerItems(
-                        onHome = { closeDrawer(); goHome() },
-                        onLogin = { closeDrawer(); goLogin() },
-                        onRegister = { closeDrawer(); goRegister() },
-                        onCuadros = { closeDrawer(); goCuadros() },
-                        onMolduras = { closeDrawer(); goMolduras() },
-                        onCart = { closeDrawer(); goCart() }
-                    )
-                )
+            ModalDrawerSheet {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    // Cabecera
+                    Box(modifier = Modifier.fillMaxWidth().height(150.dp).padding(16.dp), contentAlignment = Alignment.CenterStart) {
+                        Column {
+                            Text("Legacy Frames", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, color = dynamicColor)
+                            if (session.isLoggedIn) Text("Hola, ${session.currentUser?.nombre}", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                    HorizontalDivider()
+
+                    // --- MENÚ PRINCIPAL ---
+                    DrawerItem(Icons.Default.Home, "Inicio", currentRoute == "home") { navController.navigate("home"); scope.launch { drawerState.close() } }
+                    DrawerItem(Icons.Default.ViewCarousel, "Molduras", currentRoute == "molduras") { navController.navigate("molduras"); scope.launch { drawerState.close() } }
+                    DrawerItem(Icons.Default.Photo, "Cuadros", currentRoute == "cuadros") { navController.navigate("cuadros"); scope.launch { drawerState.close() } }
+                    DrawerItem(Icons.Default.ShoppingCart, "Carrito", currentRoute == "cart") { navController.navigate("cart"); scope.launch { drawerState.close() } }
+
+                    if (session.isLoggedIn) {
+                        DrawerItem(Icons.Default.ShoppingBag, "Mis Compras", currentRoute == "purchases") { navController.navigate("purchases"); scope.launch { drawerState.close() } }
+                    }
+
+                    // --- ELIMINADO: DrawerItem de "Contacto" (Ahora solo está en Configuración) ---
+
+                    DrawerItem(Icons.Default.Description, "Términos", currentRoute == "terms") { navController.navigate("terms"); scope.launch { drawerState.close() } }
+
+                    // --- SECCIÓN ADMIN ---
+                    if (session.isAdmin) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                        Text("Administración", modifier = Modifier.padding(start = 28.dp, bottom = 8.dp), style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+
+                        DrawerItem(Icons.Default.AdminPanelSettings, "Panel Admin", currentRoute == "admin_panel") {
+                            navController.navigate("admin_panel")
+                            scope.launch { drawerState.close() }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    DrawerItem(Icons.Default.Settings, "Configuración", currentRoute == "settings") { navController.navigate("settings"); scope.launch { drawerState.close() } }
+
+                    if (!session.isLoggedIn) {
+                        DrawerItem(Icons.Default.Login, "Iniciar sesión", currentRoute == "login") { navController.navigate("login"); scope.launch { drawerState.close() } }
+                        DrawerItem(Icons.Default.PersonAdd, "Registro", currentRoute == "register") { navController.navigate("register"); scope.launch { drawerState.close() } }
+                    } else {
+                        DrawerItem(Icons.Default.ExitToApp, "Cerrar Sesión", false) { authViewModel.logout(); navController.navigate("login"); scope.launch { drawerState.close() } }
+                    }
+                }
             }
         }
     ) {
         Scaffold(
             topBar = {
-                val backStackEntry by navController.currentBackStackEntryAsState()
-                val route = backStackEntry?.destination?.route
-                if (route != Route.Splash.path) {
-                    AppTopBar(
-                        onOpenDrawer = openDrawer,
-                        onOpenCart = goCart,
-                        cartItemCount = cartItemCount
+                if (showBars) {
+                    CenterAlignedTopAppBar(
+                        title = { Text("Legacy Frames", fontWeight = FontWeight.Bold, color = Color.White) },
+                        navigationIcon = { IconButton(onClick = { scope.launch { drawerState.open() } }) { Icon(Icons.Default.Menu, null, tint = Color.White) } },
+                        actions = { IconButton(onClick = { navController.navigate("cart") }) { Icon(Icons.Default.ShoppingCart, null, tint = Color.White) } },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = dynamicColor)
                     )
                 }
             },
             bottomBar = {
-                val backStackEntry by navController.currentBackStackEntryAsState()
-                val route = backStackEntry?.destination?.route
-                val hideOn = setOf(
-                    Route.Splash.path,
-                    Route.Cart.path,
-                    Route.Login.path,
-                    Route.Register.path,
-                    Route.Admin.path,
-                    Route.AddProduct.path,
-                    Route.ChangeProductImage.path,
-                    Route.DeleteProduct.path,
-                    Route.DeleteCuadro.path,
-                    Route.AddCuadro.path
-                )
-                if (route !in hideOn) {
-                    AppBottomBar(
-                        currentRoute = route,
-                        onHome = goHome,
-                        onProfile = goProfile,
-                        onSettings = goSettings
-                    )
+                if (showBars) {
+                    NavigationBar {
+                        listOf(Screen.Home, Screen.Cart, Screen.Profile).forEach { screen ->
+                            NavigationBarItem(
+                                icon = { Icon(if (currentRoute == screen.route) screen.iconFilled else screen.iconOutlined, null) },
+                                label = { Text(screen.label) },
+                                selected = currentRoute == screen.route,
+                                onClick = { navController.navigate(screen.route) },
+                                colors = NavigationBarItemDefaults.colors(selectedIconColor = dynamicColor, indicatorColor = dynamicColor.copy(alpha = 0.2f))
+                            )
+                        }
+                    }
                 }
             }
         ) { innerPadding ->
-            NavHost(
-                navController = navController,
-                startDestination = Route.Splash.path,
-                modifier = Modifier.padding(innerPadding)
-            ) {
-                composable(Route.Splash.path) {
-                    com.example.legacyframeapp.ui.screen.SplashScreen(onFinished = goHome)
-                }
-                composable(Route.Home.path) {
+            NavHost(navController, startDestination = "home", modifier = Modifier.padding(innerPadding)) {
+                // Rutas
+                composable("home") {
                     HomeScreen(
-                        onGoLogin = goLogin,
-                        onGoRegister = goRegister,
-                        onGoMolduras = goMolduras,
-                        onGoCuadros = goCuadros,
-                        products = products
-                    )
-                }
-                composable(Route.Profile.path) {
-                    ProfileScreenVm(
                         vm = authViewModel,
-                        onGoLogin = goLogin,
-                        onGoRegister = goRegister,
-                        onGoSettings = { navController.navigate(Route.Settings.path) },
-                        onLogout = doLogout
+                        onNavigateToMolduras = { navController.navigate("molduras") },
+                        onNavigateToCuadros = { navController.navigate("cuadros") }
                     )
                 }
-                composable(Route.Login.path) {
-                    LoginScreenVm(
-                        vm = authViewModel,
-                        onLoginOkNavigateHome = goHome,
-                        onGoRegister = goRegister,
-                        onGoResetPassword = { navController.navigate(Route.ResetPassword.path) }
+
+                composable("molduras") { MoldurasScreenVm(vm = authViewModel, onAddProduct = {}) }
+                composable("cuadros") { CuadrosScreenVm(vm = authViewModel, onAddCuadro = {}) }
+                composable("cart") { CartScreen(vm = authViewModel, onGoToPay = { authViewModel.recordOrder(authViewModel.cartItems.value, authViewModel.cartTotal.value); navController.navigate("home") }) }
+                composable("profile") { ProfileScreen(vm = authViewModel, onLogout = { authViewModel.logout(); navController.navigate("login") }) }
+                composable("settings") { SettingsScreen(vm = authViewModel, onBack = { navController.popBackStack() }) }
+                composable("purchases") { PurchasesScreen(vm = authViewModel) }
+                composable("contact") { ContactScreen(vm = authViewModel) }
+                composable("terms") { TermsScreen(onBack = { navController.popBackStack() }) }
+                composable("login") { LoginScreen(vm = authViewModel, onLoginSuccess = { navController.navigate("home") }, onGoRegister = { navController.navigate("register") }) }
+                composable("register") { RegisterScreen(vm = authViewModel, onRegisterSuccess = { navController.navigate("login") }, onGoLogin = { navController.navigate("login") }) }
+
+                // Admin
+                composable("admin_panel") {
+                    AdminScreen(
+                        onGoAddProduct = { navController.navigate("add_product") },
+                        onGoAddCuadro = { navController.navigate("add_cuadro") },
+                        onGoDeleteProduct = { navController.navigate("delete_product") },
+                        onGoDeleteCuadro = { navController.navigate("delete_cuadro") }
                     )
                 }
-                composable(Route.Register.path) {
-                    RegisterScreenVm(
-                        vm = authViewModel,
-                        onRegisteredNavigateLogin = goLogin,
-                        onGoLogin = goLogin
-                    )
-                }
-                composable(Route.Molduras.path) {
-                    MoldurasScreenVm(
-                        vm = authViewModel,
-                        onAddProduct = goAddProduct
-                    )
-                }
-                composable(Route.Cuadros.path) {
-                    CuadrosScreenVm(
-                        vm = authViewModel,
-                        onAddCuadro = goAddCuadro
-                    )
-                }
-                composable(Route.Cart.path) {
-                    CartScreenVm(
-                        vm = authViewModel,
-                        onNavigateBack = goBack,
-                        onRequireLogin = goLogin
-                    )
-                }
-                composable(Route.Contact.path) {
-                    ContactScreen()
-                }
-                composable(Route.Settings.path) {
-                    SettingsScreenVm(
-                        vm = authViewModel,
-                        onGoPurchases = {
-                            if (session.isLoggedIn) {
-                                navController.navigate(Route.Purchases.path)
-                            } else {
-                                goLogin()
-                            }
-                        },
-                        onGoTerms = { navController.navigate(Route.Terms.path) },
-                        onGoContact = { navController.navigate(Route.Contact.path) },
-                        onGoLogin = goLogin
-                    )
-                }
-                composable(Route.Purchases.path) {
-                    if (session.isLoggedIn) {
-                        PurchasesScreenVm(vm = authViewModel)
-                    } else {
-                        LaunchedEffect(Unit) { goLogin() }
-                    }
-                }
-                composable(Route.Terms.path) {
-                    TermsScreen()
-                }
-                composable(Route.ResetPassword.path) {
-                    ResetPasswordScreenVm(
-                        vm = authViewModel,
-                        onSuccess = { goLogin() },
-                        onBack = { goLogin() }
-                    )
-                }
-                composable(Route.AddProduct.path) {
-                    AddProductScreenVm(
-                        vm = authViewModel,
-                        onNavigateBack = goBack
-                    )
-                }
-                composable(Route.AddCuadro.path) {
-                    AddCuadroScreenVm(
-                        vm = authViewModel,
-                        onNavigateBack = goBack
-                    )
-                }
-                composable(Route.Admin.path) {
-                    AdminScreenVm(
-                        vm = authViewModel,
-                        onGoAddProduct = goAddProduct,
-                        onGoAddCuadro = goAddCuadro,
-                        onGoChangeImage = goChangeProductImage,
-                        onGoDeleteProduct = goDeleteProduct,
-                        onGoDeleteCuadro = goDeleteCuadro,
-                        onBack = goBack
-                    )
-                }
-                composable(Route.ChangeProductImage.path) {
-                    ChangeProductImageScreenVm(
-                        vm = authViewModel,
-                        onNavigateBack = goBack
-                    )
-                }
-                composable(Route.DeleteProduct.path) {
-                    DeleteProductScreenVm(
-                        vm = authViewModel,
-                        onNavigateBack = goBack
-                    )
-                }
-                composable(Route.DeleteCuadro.path) {
-                    DeleteCuadroScreenVm(
-                        vm = authViewModel,
-                        onNavigateBack = goBack
-                    )
-                }
+                composable("add_product") { AddProductScreen(vm = authViewModel, onBack = { navController.popBackStack() }) }
+                composable("add_cuadro") { AddCuadroScreen(vm = authViewModel, onBack = { navController.popBackStack() }) }
+                composable("delete_product") { DeleteProductScreen(vm = authViewModel, onBack = { navController.popBackStack() }) }
+                composable("delete_cuadro") { DeleteCuadroScreen(vm = authViewModel, onBack = { navController.popBackStack() }) }
             }
         }
     }
+}
+
+@Composable
+fun DrawerItem(icon: ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+    NavigationDrawerItem(icon = { Icon(icon, null) }, label = { Text(label) }, selected = selected, onClick = onClick, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
 }

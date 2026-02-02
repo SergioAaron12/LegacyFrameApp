@@ -1,234 +1,55 @@
 package com.example.legacyframeapp.ui.screen
 
-import android.content.Intent
-import android.net.Uri
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.os.Build
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.automirrored.filled.Chat
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.layout.width
 import androidx.compose.ui.unit.dp
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.ui.graphics.Color
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import android.Manifest
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
-import com.example.legacyframeapp.ui.components.AppButton
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.legacyframeapp.ui.viewmodel.AuthViewModel
 
 @Composable
-fun ContactScreen() {
-    val context = LocalContext.current
-
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var nameError by remember { mutableStateOf<String?>(null) }
-    var emailError by remember { mutableStateOf<String?>(null) }
+fun ContactScreen(vm: AuthViewModel) {
+    val session by vm.session.collectAsStateWithLifecycle()
     var message by remember { mutableStateOf("") }
-    var messageError by remember { mutableStateOf<String?>(null) }
-
-    fun validateMessage(text: String): String? {
-        val len = text.trim().length
-        if (len < 10) return "El mensaje debe tener al menos 10 caracteres"
-        if (len > 300) return "El mensaje no puede superar 300 caracteres"
-        return null
-    }
-
-    fun postSuccessNotification() {
-        val channelId = "contact_channel"
-        val nm = context.getSystemService(NotificationManager::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Contacto", NotificationManager.IMPORTANCE_DEFAULT)
-            nm?.createNotificationChannel(channel)
-        }
-        val builder = NotificationCompat.Builder(context, channelId)
-            .setSmallIcon(android.R.drawable.stat_notify_chat)
-            .setContentTitle("Mensaje enviado")
-            .setContentText("Mensaje enviado con éxito")
-            .setAutoCancel(true)
-        val canNotify = if (Build.VERSION.SDK_INT >= 33) {
-            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-        } else true
-        if (canNotify) {
-            NotificationManagerCompat.from(context).notify(1001, builder.build())
-        }
-    }
-
-    fun validateEmailLocal(text: String): String? {
-        if (text.isBlank()) return "El correo es obligatorio"
-        val pattern = android.util.Patterns.EMAIL_ADDRESS
-        return if (pattern.matcher(text).matches()) null else "Correo inválido"
-    }
-
-    fun validateNameLocal(text: String): String? {
-        if (text.isBlank()) return "El nombre es obligatorio"
-        return null
-    }
+    var sent by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Text(text = "Contacto")
+        Text("Contacto", style = MaterialTheme.typography.headlineMedium)
+        Spacer(modifier = Modifier.height(16.dp))
 
-        OutlinedTextField(
-            value = name,
-            onValueChange = {
-                name = it
-                nameError = validateNameLocal(it)
-            },
-            label = { Text("Nombre") },
-            isError = nameError != null,
-            supportingText = {
-                if (nameError != null) Text(nameError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        OutlinedTextField(
-            value = email,
-            onValueChange = {
-                email = it
-                emailError = validateEmailLocal(it)
-            },
-            label = { Text("Correo") },
-            isError = emailError != null,
-            supportingText = {
-                if (emailError != null) Text(emailError!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        OutlinedTextField(
-            value = message,
-            onValueChange = {
-                // Limitar a 300 caracteres y validar
-                val limited = it.take(300)
-                message = limited
-                messageError = validateMessage(limited)
-            },
-            label = { Text("Mensaje") },
-            isError = messageError != null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(160.dp),
-            supportingText = {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(
-                        text = if (messageError != null) "Debe tener mínimo 10 letras y máximo 300." else "",
-                        color = if (messageError != null) MaterialTheme.colorScheme.error else Color.Unspecified,
-                        style = MaterialTheme.typography.labelSmall
-                    )
-                    Text("${message.length}/300", style = MaterialTheme.typography.labelSmall)
-                }
+        if (sent) {
+            Text("¡Gracias! Tu mensaje ha sido enviado.", color = MaterialTheme.colorScheme.primary)
+            Button(onClick = { sent = false; message = "" }, modifier = Modifier.padding(top = 16.dp)) {
+                Text("Enviar otro")
             }
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            // WhatsApp (estilo del sitio)
-            Button(onClick = {
-                val msgErr = validateMessage(message)
-                val nErr = validateNameLocal(name)
-                val eErr = validateEmailLocal(email)
-                nameError = nErr
-                emailError = eErr
-                if (msgErr != null || nErr != null || eErr != null) {
-                    android.widget.Toast.makeText(context, msgErr ?: nErr ?: eErr, android.widget.Toast.LENGTH_SHORT).show()
-                } else {
-                    postSuccessNotification()
-                    android.widget.Toast.makeText(context, "Mensaje enviado con éxito", android.widget.Toast.LENGTH_SHORT).show()
-                    // Reiniciar formulario
-                    name = ""
-                    email = ""
-                    message = ""
-                    nameError = null
-                    emailError = null
-                    messageError = null
-                }
-            }, modifier = Modifier
-                .height(40.dp)
-                .weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = androidx.compose.ui.graphics.Color(0xFF25D366),
-                    contentColor = androidx.compose.ui.graphics.Color.White
-                )
+        } else {
+            OutlinedTextField(
+                value = message,
+                onValueChange = { message = it },
+                label = { Text("Escribe tu consulta aquí") },
+                modifier = Modifier.fillMaxWidth().height(150.dp),
+                minLines = 3
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(
+                onClick = {
+                    vm.sendContactMessage(
+                        session.currentUser?.nombre ?: "Invitado",
+                        session.currentUser?.email ?: "anonimo@legacy.cl",
+                        message
+                    ) { if(it) sent = true }
+                },
+                enabled = message.isNotBlank(),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("WhatsApp")
+                Text("Enviar Mensaje")
             }
-
-            // Llamar (más compacto, consistente con otros botones)
-            OutlinedButton(onClick = {
-                val intent = Intent(Intent.ACTION_DIAL)
-                intent.data = Uri.parse("tel:56945621740")
-                context.startActivity(intent)
-            }, modifier = Modifier
-                .height(40.dp)
-                .weight(1f)
-            ) {
-                Icon(Icons.Default.Call, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text("Llamar")
-            }
-        }
-
-        // Botón central de enviar mensaje (mismo flujo que WhatsApp, valida nombre/email/mensaje)
-        AppButton(
-            onClick = {
-                val msgErr = validateMessage(message)
-                val nErr = validateNameLocal(name)
-                val eErr = validateEmailLocal(email)
-                nameError = nErr
-                emailError = eErr
-                if (msgErr != null || nErr != null || eErr != null) {
-                    android.widget.Toast.makeText(context, msgErr ?: nErr ?: eErr, android.widget.Toast.LENGTH_SHORT).show()
-                } else {
-                    postSuccessNotification()
-                    android.widget.Toast.makeText(context, "Mensaje enviado con éxito", android.widget.Toast.LENGTH_SHORT).show()
-                    // Reiniciar formulario
-                    name = ""
-                    email = ""
-                    message = ""
-                    nameError = null
-                    emailError = null
-                    messageError = null
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .padding(top = 8.dp)
-        ) {
-            Text("Enviar mensaje")
         }
     }
 }

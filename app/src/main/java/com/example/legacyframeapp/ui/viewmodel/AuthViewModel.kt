@@ -1,42 +1,43 @@
 package com.example.legacyframeapp.ui.viewmodel
 
 import android.app.Application
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
 import android.net.Uri
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
+import android.widget.Toast
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.FileProvider
 import com.example.legacyframeapp.R
 import com.example.legacyframeapp.data.local.cart.CartItemEntity
-import com.example.legacyframeapp.data.local.cuadro.CuadroEntity
-import com.example.legacyframeapp.data.local.product.ProductEntity
-import com.example.legacyframeapp.data.local.user.UserEntity
+import com.example.legacyframeapp.data.local.storage.UserPreferences
+import com.example.legacyframeapp.data.network.TokenManager
+import com.example.legacyframeapp.data.network.model.*
+import com.example.legacyframeapp.data.remote.RetrofitClient
 import com.example.legacyframeapp.data.repository.CartRepository
-import com.example.legacyframeapp.data.repository.CuadroRepository
-import com.example.legacyframeapp.data.repository.ProductRepository
+import com.example.legacyframeapp.data.repository.ContactRepository
+import com.example.legacyframeapp.data.repository.OrderRepository
 import com.example.legacyframeapp.data.repository.UserRepository
-import com.example.legacyframeapp.domain.ImageStorageHelper
+import com.example.legacyframeapp.domain.model.Cuadro
+import com.example.legacyframeapp.domain.model.Order
+import com.example.legacyframeapp.domain.model.Product
+import com.example.legacyframeapp.domain.model.User
+import com.example.legacyframeapp.domain.repository.CuadroRepository
+import com.example.legacyframeapp.domain.repository.ProductRepository
 import com.example.legacyframeapp.domain.validation.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
-import java.net.URL
-import com.example.legacyframeapp.data.local.storage.UserPreferences
-import com.example.legacyframeapp.data.local.order.OrderEntity
-import com.example.legacyframeapp.data.repository.OrderRepository
-import java.text.NumberFormat
-import java.util.Locale
 
-
-// --- ESTADOS DE UI ---
+// =================================================================================
+// CLASES DE ESTADO (UI STATES)
+// =================================================================================
 
 data class LoginUiState(
     val email: String = "",
@@ -74,9 +75,10 @@ data class RegisterUiState(
 
 data class SessionUiState(
     val isLoggedIn: Boolean = false,
-    val currentUser: UserEntity? = null,
-    val isAdmin: Boolean = false
+    val isAdmin: Boolean = false,
+    val currentUser: User? = null
 )
+
 data class ResetPasswordUiState(
     val email: String = "",
     val newPass: String = "",
@@ -89,10 +91,26 @@ data class ResetPasswordUiState(
     val errorMsg: String? = null
 )
 
+// --- ESTADO DEL PERFIL ---
+data class ProfileUiState(
+    val nombre: String = "",
+    val apellido: String = "",
+    val email: String = "",
+    val telefono: String = "",
+    val direccion: String = "",
+    val password: String = "",
+    val confirmPassword: String = "",
+    val isEditing: Boolean = false,
+    val isLoading: Boolean = false,
+    val updateSuccess: Boolean = false,
+    val errorMsg: String? = null
+)
+
 data class AddProductUiState(
     val name: String = "",
     val description: String = "",
     val price: String = "",
+    val categoryId: Long = 2, // Por defecto Grecas (ID 2)
     val imageUri: Uri? = null,
     val nameError: String? = null,
     val priceError: String? = null,
@@ -121,6 +139,10 @@ data class AddCuadroUiState(
     val errorMsg: String? = null
 )
 
+// =================================================================================
+// VIEW MODEL
+// =================================================================================
+
 class AuthViewModel(
     application: Application,
     private val userRepository: UserRepository,
@@ -128,662 +150,450 @@ class AuthViewModel(
     private val cuadroRepository: CuadroRepository,
     private val cartRepository: CartRepository,
     private val userPreferences: UserPreferences,
-    private val orderRepository: OrderRepository? = null
+    private val orderRepository: OrderRepository?,
+    private val contactRepository: ContactRepository
 ) : AndroidViewModel(application) {
 
-    // --- (Login, Register, Session) ---
+    // ⚠️ CONFIGURACIÓN DE IDs (Ajustar según tu base de datos)
+    private val ID_CATEGORIA_CUADROS = 1L
+    private val ID_DEFECTO_MOLDURAS  = 2L
+
+    // --- SESIÓN ---
+    private val _isAdminSession = MutableStateFlow(false)
+
+    val session = combine(userPreferences.isLoggedIn, _isAdminSession) { loggedIn, isAdmin ->
+        val user = if (loggedIn) User(id = "1", nombre = "Usuario", email = "user@legacy.cl") else null
+        SessionUiState(isLoggedIn = loggedIn, isAdmin = isAdmin, currentUser = user)
+    }.stateIn(viewModelScope, SharingStarted.Lazily, SessionUiState())
+
+    // --- DATOS ---
+    private val _products = MutableStateFlow<List<Product>>(emptyList())
+    val products = _products.asStateFlow()
+
+    private val _cuadros = MutableStateFlow<List<Cuadro>>(emptyList())
+    val cuadros = _cuadros.asStateFlow()
+
+    private val _orders = MutableStateFlow<List<Order>>(emptyList())
+    val orders = _orders.asStateFlow()
+
+    private val _dolarValue = MutableStateFlow<Double?>(null)
+    val dolarValue = _dolarValue.asStateFlow()
+
+    // --- CARRITO ---
+    val cartItems: StateFlow<List<CartItemEntity>> = cartRepository.items()
+        .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+    val cartTotal: StateFlow<Int> = cartRepository.total()
+        .stateIn(viewModelScope, SharingStarted.Lazily, 0)
+    val cartItemCount: StateFlow<Int> = cartRepository.count()
+        .stateIn(viewModelScope, SharingStarted.Lazily, 0)
+
+    // --- PREFERENCIAS ---
+    val darkMode = userPreferences.isDarkMode.stateIn(viewModelScope, SharingStarted.Lazily, false)
+    val themeMode = userPreferences.themeMode.stateIn(viewModelScope, SharingStarted.Lazily, "system")
+    val accentColor = userPreferences.accentColor.stateIn(viewModelScope, SharingStarted.Lazily, "#FF8B5C2A")
+    val fontScale = userPreferences.fontScale.stateIn(viewModelScope, SharingStarted.Lazily, 1.0f)
+    val notifOffers = userPreferences.notifOffers.stateIn(viewModelScope, SharingStarted.Lazily, true)
+    val notifTracking = userPreferences.notifTracking.stateIn(viewModelScope, SharingStarted.Lazily, true)
+    val notifCart = userPreferences.notifCart.stateIn(viewModelScope, SharingStarted.Lazily, true)
+
+    // --- UI STATES ---
     private val _login = MutableStateFlow(LoginUiState())
-    val login: StateFlow<LoginUiState> = _login.asStateFlow()
+    val login = _login.asStateFlow()
 
     private val _register = MutableStateFlow(RegisterUiState())
-    val register: StateFlow<RegisterUiState> = _register.asStateFlow()
+    val register = _register.asStateFlow()
 
-    private val _session = MutableStateFlow(SessionUiState())
-    val session: StateFlow<SessionUiState> = _session.asStateFlow()
-
-    // --- (Reset Password) ---
     private val _resetPassword = MutableStateFlow(ResetPasswordUiState())
-    val resetPassword: StateFlow<ResetPasswordUiState> = _resetPassword.asStateFlow()
+    val resetPassword = _resetPassword.asStateFlow()
 
-    // --- (Productos - Molduras) ---
-    val products: StateFlow<List<ProductEntity>> =
-        productRepository.getAllProducts()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
+    private val _addProduct = MutableStateFlow(AddProductUiState(categoryId = ID_DEFECTO_MOLDURAS))
+    val addProduct = _addProduct.asStateFlow()
 
-    private val _productCategories = MutableStateFlow<List<String>>(emptyList())
-    val productCategories: StateFlow<List<String>> = _productCategories.asStateFlow()
-
-    private val _productFilter = MutableStateFlow("all")
-    val productFilter: StateFlow<String> = _productFilter.asStateFlow()
-
-    // Flujo filtrado de Productos
-    val filteredProducts: StateFlow<List<ProductEntity>> =
-        combine(products, productFilter) { productsList, filter ->
-            if (filter == "all") productsList else productsList.filter { it.category.equals(filter, ignoreCase = true) }
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
-
-
-    // --- (Cuadros) ---
-    val cuadros: StateFlow<List<CuadroEntity>> =
-        cuadroRepository.getAllCuadros()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
-
-    private val _cuadroCategories = MutableStateFlow<List<String>>(emptyList())
-    val cuadroCategories: StateFlow<List<String>> = _cuadroCategories.asStateFlow()
-
-    private val _cuadroFilter = MutableStateFlow("all")
-    val cuadroFilter: StateFlow<String> = _cuadroFilter.asStateFlow()
-
-    // --- DEFINICIÓN AÑADIDA ---
-    val filteredCuadros: StateFlow<List<CuadroEntity>> =
-        combine(cuadros, cuadroFilter) { cuadrosList, filter -> // Combina cuadros y filtro
-            if (filter == "all") {
-                cuadrosList // Si el filtro es "all", devuelve todos
-            } else {
-                cuadrosList.filter { it.category.equals(filter, ignoreCase = true) } // Filtra por categoría
-            }
-        }.stateIn( // Convierte el resultado en un StateFlow
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000L),
-            initialValue = emptyList() // Empieza vacío
-        )
-    // -------------------------
-
-    // --- (Carrito) ---
-    val cartItems: StateFlow<List<CartItemEntity>> = cartRepository.items()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
-    val cartTotal: StateFlow<Int> = cartRepository.total()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 0)
-
-    val cartItemCount: StateFlow<Int> = cartRepository.count()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 0)
-
-    // --- (Preferencias) ---
-    val darkMode: StateFlow<Boolean> =
-        userPreferences.isDarkMode
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), false)
-
-    val avatarType: StateFlow<String> =
-        userPreferences.avatarType
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "male")
-    // Nuevas preferencias
-    val themeMode: StateFlow<String> = userPreferences.themeMode
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "system")
-    val accentColor: StateFlow<String> = userPreferences.accentColor
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "#FF8B5C2A")
-    val fontScale: StateFlow<Float> = userPreferences.fontScale
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), 1.0f)
-    val notifOffers: StateFlow<Boolean> = userPreferences.notifOffers
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), true)
-    val notifTracking: StateFlow<Boolean> = userPreferences.notifTracking
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), true)
-    val notifCart: StateFlow<Boolean> = userPreferences.notifCart
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), true)
-    val languagePref: StateFlow<String> = userPreferences.language
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), "system")
-
-    // --- (Historial de compras) ---
-    val orders: StateFlow<List<OrderEntity>> =
-        (orderRepository?.getAll() ?: flowOf(emptyList())) // Usa flowOf si es nulo
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
-
-    // --- (Add Product) ---
-    private val _addProduct = MutableStateFlow(AddProductUiState())
-    val addProduct: StateFlow<AddProductUiState> = _addProduct.asStateFlow()
-
-    // --- (Add Cuadro) ---
     private val _addCuadro = MutableStateFlow(AddCuadroUiState())
-    val addCuadro: StateFlow<AddCuadroUiState> = _addCuadro.asStateFlow()
+    val addCuadro = _addCuadro.asStateFlow()
 
+    private val _profile = MutableStateFlow(ProfileUiState())
+    val profile = _profile.asStateFlow()
 
-    // --- BLOQUE init ---
     init {
+        // Sincronizar Token
         viewModelScope.launch {
-            // Cargar categorías
-            _productCategories.value = productRepository.getAllCategories()
-            _cuadroCategories.value = cuadroRepository.getAllCategories()
-            userRepository.ensureAdminUserExists()
-        }
-        // Restaurar estado de sesión basado en preferencias
-        viewModelScope.launch {
-            userPreferences.isLoggedIn.collect { loggedIn ->
-                if (!loggedIn && session.value.isLoggedIn) {
-                    // Si DataStore dice no logueado pero la sesión sí, desloguear
-                    logout()
-                }
-                // (La lógica de login actualiza DataStore y la sesión, así que no necesitamos más aquí)
+            userPreferences.authToken.collect { tokenGuardado ->
+                TokenManager.token = tokenGuardado
             }
         }
+
+        fetchCatalog()
+        fetchDolarValue()
+        fetchOrders()
     }
 
-    // --- Funciones de Prefetch ---
-    fun prefetchProductImages(appContext: Context) {
-        viewModelScope.launch(Dispatchers.IO) {
+    // --- FUNCIONES DE CARGA ---
+
+    private fun fetchCatalog() {
+        viewModelScope.launch {
             try {
-                val current = productRepository.getAllProducts().first()
-                current.forEach { p ->
-                    if (p.imagePath.startsWith("http")) {
-                        val safeName = sanitizeFileName(p.name.ifBlank { p.imagePath.hashCode().toString() }) + ".jpg"
-                        val outFile = File(appContext.filesDir, safeName)
-                        val ok = downloadToFile(p.imagePath, outFile)
-                        if (ok) {
-                            productRepository.update(p.copy(imagePath = outFile.name)) // Guarda solo el nombre
-                        }
-                    }
-                }
-            } catch (_: Exception) { }
-        }
-    }
-    private suspend fun downloadToFile(url: String, dest: File): Boolean = withContext(Dispatchers.IO) {
-        return@withContext try {
-            URL(url).openStream().use { input ->
-                FileOutputStream(dest).use { output ->
-                    input.copyTo(output)
-                }
+                _products.value = productRepository.getProducts()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Manejar error de productos
             }
-            true
-        } catch (_: Exception) {
-            false
+            try {
+                _cuadros.value = cuadroRepository.getCuadros()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                // Manejar error de cuadros
+            }
         }
     }
-    private fun sanitizeFileName(name: String): String =
-        name.lowercase()
-            .replace(" ", "_")
-            .replace(Regex("[^a-z0-9._-]"), "")
 
+    // --- CORRECCIÓN 1: Obtener pedidos con el email REAL ---
+    private fun fetchOrders() {
+        if (orderRepository == null) return
+        viewModelScope.launch {
+            // Obtenemos el email guardado
+            val email = userPreferences.getEmail()
 
-    // --- Funciones de Login/Registro ---
-    fun onLoginEmailChange(email: String) {
-        val emailError = validateEmail(email)
-        _login.update {
-            it.copy(
-                email = email,
-                emailError = emailError,
-                canSubmit = emailError == null && it.pass.isNotBlank() && it.passError == null
-            )
+            if (!email.isNullOrBlank()) {
+                val historial = orderRepository.getMyOrders(email)
+                _orders.value = historial
+            } else {
+                _orders.value = emptyList()
+            }
         }
     }
-    fun onLoginPassChange(pass: String) {
-        val passError = if (pass.isBlank()) "La contraseña es obligatoria" else null
-        _login.update {
-            it.copy(
-                pass = pass,
-                passError = passError,
-                canSubmit = passError == null && it.email.isNotBlank() && it.emailError == null
-            )
+
+    private fun fetchDolarValue() {
+        viewModelScope.launch {
+            try {
+                val response = RetrofitClient.externalService.getIndicadores()
+                if (response.isSuccessful) {
+                    _dolarValue.value = response.body()?.dolar?.valor
+                }
+            } catch (e: Exception) { e.printStackTrace() }
         }
     }
-    fun onRegisterNombreChange(nombre: String) {
-        val nombreError = validateNameLettersOnly(nombre)
-        _register.update { s ->
-            s.copy(
-                nombre = nombre,
-                nombreError = nombreError,
-                canSubmit = checkRegisterCanSubmit(s.copy(nombre = nombre, nombreError = nombreError))
-            )
-        }
-    }
-    fun onRegisterApellidoChange(apellido: String) {
-        val apellidoError = validateApellido(apellido)
-        _register.update { s ->
-            s.copy(
-                apellido = apellido,
-                apellidoError = apellidoError,
-                canSubmit = checkRegisterCanSubmit(s.copy(apellido = apellido, apellidoError = apellidoError))
-            )
-        }
-    }
-    fun onRegisterRutChange(rut: String) {
-        val rutError = validateRut(rut)
-        val dvError = validateDv(_register.value.dv, rut)
-        _register.update { s ->
-            s.copy(
-                rut = rut,
-                rutError = rutError,
-                dvError = dvError,
-                canSubmit = checkRegisterCanSubmit(s.copy(rut = rut, rutError = rutError, dvError = dvError))
-            )
-        }
-    }
-    fun onRegisterDvChange(dv: String) {
-        val dvError = validateDv(dv, _register.value.rut)
-        _register.update { s ->
-            s.copy(
-                dv = dv.uppercase(),
-                dvError = dvError,
-                canSubmit = checkRegisterCanSubmit(s.copy(dv = dv.uppercase(), dvError = dvError))
-            )
-        }
-    }
-    fun onRegisterEmailChange(email: String) {
-        val emailError = validateEmail(email)
-        _register.update { s ->
-            s.copy(
-                email = email,
-                emailError = emailError,
-                canSubmit = checkRegisterCanSubmit(s.copy(email = email, emailError = emailError))
-            )
-        }
-    }
-    fun onRegisterPhoneChange(phone: String) {
-        val phoneError = validatePhoneDigitsOnly(phone)
-        _register.update { s ->
-            s.copy(
-                phone = phone,
-                phoneError = phoneError,
-                canSubmit = checkRegisterCanSubmit(s.copy(phone = phone, phoneError = phoneError))
-            )
-        }
-    }
-    fun onRegisterPassChange(pass: String) {
-        val passError = validateStrongPassword(pass)
-        val confirmError = validateConfirm(pass, _register.value.confirm)
-        _register.update { s ->
-            s.copy(
-                pass = pass,
-                passError = passError,
-                confirmError = confirmError,
-                canSubmit = checkRegisterCanSubmit(s.copy(pass = pass, passError = passError, confirmError = confirmError))
-            )
-        }
-    }
-    fun onRegisterConfirmChange(confirm: String) {
-        val confirmError = validateConfirm(_register.value.pass, confirm)
-        _register.update { s ->
-            s.copy(
-                confirm = confirm,
-                confirmError = confirmError,
-                canSubmit = checkRegisterCanSubmit(s.copy(confirm = confirm, confirmError = confirmError))
-            )
-        }
-    }
-    private fun checkRegisterCanSubmit(s: RegisterUiState): Boolean {
-        return s.nombreError == null && s.apellidoError == null &&
-                s.rutError == null && s.dvError == null &&
-                s.emailError == null && s.phoneError == null &&
-                s.passError == null && s.confirmError == null &&
-                s.nombre.isNotBlank() && s.rut.isNotBlank() && s.dv.isNotBlank() &&
-                s.email.isNotBlank() && s.phone.isNotBlank() &&
-                s.pass.isNotBlank() && s.confirm.isNotBlank()
-    }
+
+    fun prefetchProductImages(context: Context) { /* Opcional */ }
+
+    // --- LOGIN ---
+
+    fun onLoginEmailChange(v: String) { _login.update { it.copy(email = v) } }
+    fun onLoginPassChange(v: String) { _login.update { it.copy(pass = v, canSubmit = v.isNotBlank()) } }
 
     fun submitLogin() {
         val s = _login.value
-        if (s.emailError != null || s.passError != null || s.email.isBlank() || s.pass.isBlank()) {
-            _login.update { it.copy(isSubmitting = false) }
-            return
-        }
+        _login.update { it.copy(isSubmitting = true, errorMsg = null) }
+
         viewModelScope.launch {
-            _login.update { it.copy(isSubmitting = true, errorMsg = null, success = false) }
             val result = userRepository.login(s.email, s.pass)
-            _login.update { loginState ->
-                if (result.isSuccess) {
-                    val user = result.getOrNull()
-                    val isAdmin = (user?.rolId == 1) ||
-                            (s.email.equals("admin@legacyframes.cl", ignoreCase = true) && s.pass == "Admin123!")
-                    _session.update { sessionState ->
-                        sessionState.copy(isLoggedIn = true, currentUser = user, isAdmin = isAdmin)
-                    }
-                    viewModelScope.launch { userPreferences.setLoggedIn(true) }
-                    loginState.copy(isSubmitting = false, success = true, errorMsg = null)
-                } else {
-                    loginState.copy(isSubmitting = false, success = false,
-                        errorMsg = result.exceptionOrNull()?.message ?: "Credenciales inválidas")
-                }
-            }
-        }
-    }
-    fun logout() {
-        viewModelScope.launch {
-            _session.update { SessionUiState() }
-            _login.update { LoginUiState() }
-            userPreferences.setLoggedIn(false)
-        }
-    }
 
-    // --- Cambio de Nombre ---
-    fun changeDisplayName(nombre: String, apellido: String?) {
-        val current = _session.value.currentUser ?: return
-        val nombreError = validateNameLettersOnly(nombre)
-        if (nombreError != null) {
-            // No tenemos un estado dedicado; podríamos usar un canal/toast. De momento, ignora si inválido.
-            return
-        }
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = userRepository.updateDisplayName(current.id, nombre, apellido)
             if (result.isSuccess) {
-                val updated = current.copy(nombre = nombre.trim(), apellido = apellido?.trim())
-                _session.update { it.copy(currentUser = updated) }
+                userPreferences.setLoggedIn(true)
+                // Verificar si es admin
+                if (s.email.lowercase().contains("admin")) {
+                    _isAdminSession.value = true
+                } else {
+                    _isAdminSession.value = false
+                }
+
+                // Recargar datos ahora que tenemos el usuario real
+                fetchOrders()
+                loadUserProfile()
+            }
+
+            _login.update { state ->
+                if (result.isSuccess) state.copy(success = true, isSubmitting = false)
+                else state.copy(success = false, isSubmitting = false, errorMsg = result.exceptionOrNull()?.message)
             }
         }
     }
 
-    // --- Reset Password UI handlers ---
-    fun onResetEmailChange(email: String) {
-        val emailError = validateEmail(email)
-        _resetPassword.update { it.copy(email = email, emailError = emailError) }
+    // --- REGISTRO ---
+
+    fun onRegisterNombreChange(v: String) {
+        val err = validateNameLettersOnly(v)
+        _register.update { s -> s.copy(nombre = v, nombreError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
     }
-    fun onResetNewPassChange(pass: String) {
-        val passError = validateStrongPassword(pass)
-        val confirmError = validateConfirm(pass, _resetPassword.value.confirm)
-        _resetPassword.update { it.copy(newPass = pass, passError = passError, confirmError = confirmError) }
+    fun onRegisterApellidoChange(v: String) {
+        val err = if (v.isBlank()) null else validateNameLettersOnly(v)
+        _register.update { s -> s.copy(apellido = v, apellidoError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
     }
-    fun onResetConfirmChange(confirm: String) {
-        val confirmError = validateConfirm(_resetPassword.value.newPass, confirm)
-        _resetPassword.update { it.copy(confirm = confirm, confirmError = confirmError) }
+    fun onRegisterRutChange(v: String) {
+        val rutErr = validateRut(v)
+        val dvErr = validateDv(_register.value.dv, v)
+        _register.update { s -> s.copy(rut = v, rutError = rutErr, dvError = dvErr).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
     }
-    fun submitResetPassword() {
-        val s = _resetPassword.value
-        val emailErr = s.emailError ?: validateEmail(s.email)
-        val passErr = s.passError ?: validateStrongPassword(s.newPass)
-        val confErr = s.confirmError ?: validateConfirm(s.newPass, s.confirm)
-        if (emailErr != null || passErr != null || confErr != null) {
-            _resetPassword.update { it.copy(emailError = emailErr, passError = passErr, confirmError = confErr) }
-            return
-        }
+    fun onRegisterDvChange(v: String) {
+        val err = validateDv(v, _register.value.rut)
+        _register.update { s -> s.copy(dv = v, dvError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+    fun onRegisterEmailChange(v: String) {
+        val err = validateEmail(v)
+        _register.update { s -> s.copy(email = v, emailError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+    fun onRegisterPhoneChange(v: String) {
+        val err = validatePhoneDigitsOnly(v)
+        _register.update { s -> s.copy(phone = v, phoneError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+    fun onRegisterPassChange(v: String) {
+        val passErr = validateStrongPassword(v)
+        val confErr = validateConfirm(v, _register.value.confirm)
+        _register.update { s -> s.copy(pass = v, passError = passErr, confirmError = confErr).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+    fun onRegisterConfirmChange(v: String) {
+        val err = validateConfirm(_register.value.pass, v)
+        _register.update { s -> s.copy(confirm = v, confirmError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+    }
+
+    private fun checkRegisterCanSubmit(s: RegisterUiState): Boolean {
+        val noErrors = s.nombreError == null && s.apellidoError == null &&
+                s.rutError == null && s.dvError == null &&
+                s.emailError == null && s.phoneError == null &&
+                s.passError == null && s.confirmError == null
+        val fieldsFilled = s.nombre.isNotBlank() && s.rut.isNotBlank() && s.dv.isNotBlank() &&
+                s.email.isNotBlank() && s.phone.isNotBlank() && s.pass.isNotBlank() && s.confirm.isNotBlank()
+        return noErrors && fieldsFilled
+    }
+
+    fun submitRegister() {
+        if (!_register.value.canSubmit) return
+        _register.update { it.copy(isSubmitting = true, errorMsg = null) }
         viewModelScope.launch {
-            _resetPassword.update { it.copy(isSubmitting = true, errorMsg = null, success = false) }
-            val result = userRepository.resetPasswordByEmail(s.email, s.newPass)
-            _resetPassword.update {
-                if (result.isSuccess) it.copy(isSubmitting = false, success = true)
-                else it.copy(isSubmitting = false, success = false, errorMsg = result.exceptionOrNull()?.message ?: "No se pudo restablecer")
-            }
+            val req = RegisterRequest(_register.value.nombre, _register.value.apellido, _register.value.email, _register.value.pass, _register.value.confirm, _register.value.rut, _register.value.dv, _register.value.phone)
+            val res = userRepository.register(req)
+            _register.update { if (res.isSuccess) it.copy(success = true, isSubmitting = false) else it.copy(success = false, isSubmitting = false, errorMsg = res.exceptionOrNull()?.message) }
         }
     }
+
+    // --- RESET PASSWORD ---
+    fun onResetEmailChange(v: String) { _resetPassword.update { it.copy(email = v, emailError = validateEmail(v)) } }
+    fun onResetNewPassChange(v: String) { _resetPassword.update { it.copy(newPass = v, passError = validateStrongPassword(v)) } }
+    fun onResetConfirmChange(v: String) { _resetPassword.update { it.copy(confirm = v, confirmError = validateConfirm(it.newPass, v)) } }
+    fun submitResetPassword() { _resetPassword.update { it.copy(isSubmitting = true) }; viewModelScope.launch { delay(1500); _resetPassword.update { it.copy(success = true, isSubmitting = false) } } }
     fun clearResetPasswordState() { _resetPassword.value = ResetPasswordUiState() }
 
-    // --- Cambio de contraseña desde Perfil ---
-    fun changePassword(current: String, new: String, onResult: (Boolean, String?) -> Unit) {
-        val user = _session.value.currentUser
-        if (user == null) { onResult(false, "No hay sesión activa"); return }
-        // Validaciones básicas
-        val passError = validateStrongPassword(new)
-        if (passError != null) { onResult(false, passError); return }
-        viewModelScope.launch(Dispatchers.IO) {
-            val result = userRepository.changePassword(user.id, current, new)
+    // --- PERFIL DE USUARIO ---
+
+    fun loadUserProfile() {
+        _profile.update { it.copy(isLoading = true, errorMsg = null) }
+        viewModelScope.launch {
+            val emailGuardado = userPreferences.getEmail()
+            if (emailGuardado.isNullOrBlank()) {
+                _profile.update { it.copy(isLoading = false) }
+                return@launch
+            }
+            val result = userRepository.getProfile(emailGuardado)
             if (result.isSuccess) {
-                val updated = user.copy(password = new)
-                _session.update { it.copy(currentUser = updated) }
-                withContext(Dispatchers.Main) { onResult(true, null) }
+                val data = result.getOrNull()
+                _profile.update {
+                    it.copy(
+                        isLoading = false,
+                        nombre = data?.nombre ?: "",
+                        apellido = data?.apellido ?: "",
+                        email = data?.email ?: "",
+                        telefono = data?.telefono ?: "",
+                        direccion = data?.direccion ?: ""
+                    )
+                }
             } else {
-                withContext(Dispatchers.Main) { onResult(false, result.exceptionOrNull()?.message) }
+                val errorReal = result.exceptionOrNull()?.message ?: "Error desconocido"
+                _profile.update { it.copy(isLoading = false, errorMsg = errorReal) }
             }
         }
     }
-    fun submitRegister() {
-        val s = _register.value
-        val canSubmitFinal = checkRegisterCanSubmit(s)
-        if (!canSubmitFinal) {
-            _register.update { it.copy(
-                nombreError = it.nombreError ?: if(it.nombre.isBlank()) "El nombre es obligatorio" else null,
-                apellidoError = it.apellidoError,
-                rutError = it.rutError ?: if(it.rut.isBlank()) "El RUT es obligatorio" else null,
-                dvError = it.dvError ?: if(it.dv.isBlank()) "El DV es obligatorio" else validateDv(it.dv, it.rut),
-                emailError = it.emailError ?: if(it.email.isBlank()) "El correo es obligatorio" else null,
-                phoneError = it.phoneError ?: if(it.phone.isBlank()) "El teléfono es obligatorio" else null,
-                passError = it.passError ?: if(it.pass.isBlank()) "La contraseña es obligatoria" else null,
-                confirmError = it.confirmError ?: if(it.confirm.isBlank()) "Confirma la contraseña" else if (it.pass != it.confirm) "Las contraseñas no coinciden" else null
-            )}
+
+    fun startEditing() { _profile.update { it.copy(isEditing = true) } }
+
+    fun cancelEditing() {
+        _profile.update { it.copy(isEditing = false) }
+        loadUserProfile()
+    }
+
+    fun onProfileChange(nombre: String? = null, apellido: String? = null, telefono: String? = null, direccion: String? = null, pass: String? = null, confirm: String? = null) {
+        _profile.update {
+            it.copy(
+                nombre = nombre ?: it.nombre,
+                apellido = apellido ?: it.apellido,
+                telefono = telefono ?: it.telefono,
+                direccion = direccion ?: it.direccion,
+                password = pass ?: it.password,
+                confirmPassword = confirm ?: it.confirmPassword
+            )
+        }
+    }
+
+    fun saveProfile() {
+        val p = _profile.value
+        if (p.password.isNotEmpty() && p.password != p.confirmPassword) {
+            _profile.update { it.copy(errorMsg = "Las contraseñas no coinciden") }
             return
         }
-        if (s.isSubmitting) return
-        val phoneInt: Int
-        try { phoneInt = s.phone.toInt() } catch (e: NumberFormatException) {
-            _register.update { it.copy(isSubmitting = false, errorMsg = "Error interno: El teléfono no es un número válido.") }
-            return
-        }
+
+        _profile.update { it.copy(isLoading = true, errorMsg = null, updateSuccess = false) }
         viewModelScope.launch {
-            _register.update { it.copy(isSubmitting = true, errorMsg = null, success = false) }
-            val result = userRepository.register(
-                nombre = s.nombre, apellido = s.apellido.ifBlank { null }, rut = s.rut, dv = s.dv,
-                email = s.email, password = s.pass, phone = phoneInt
+            val req = UpdateProfileRequest(
+                nombre = p.nombre,
+                apellido = p.apellido,
+                telefono = p.telefono,
+                direccion = p.direccion,
+                password = if (p.password.isBlank()) null else p.password,
+                confirmPassword = if (p.password.isBlank()) null else p.confirmPassword
             )
-            _register.update {
-                if (result.isSuccess) { it.copy(isSubmitting = false, success = true, errorMsg = null) }
-                else { it.copy(isSubmitting = false, success = false, errorMsg = result.exceptionOrNull()?.message ?: "No se pudo registrar") }
-            }
-        }
-    }
-    fun clearLoginResult() { _login.update { it.copy(success = false, errorMsg = null) } }
-    fun clearRegisterResult() { _register.update { it.copy(success = false, errorMsg = null) } }
-
-
-    // --- LÓGICA DE AddProduct ---
-    fun onAddProductChange(
-        name: String = _addProduct.value.name,
-        description: String = _addProduct.value.description,
-        price: String = _addProduct.value.price
-    ) {
-        val nameError = if(name.isBlank()) "El nombre es obligatorio" else null
-        val priceError = validatePrice(price) // Usa el validador general
-        val currentImageUri = _addProduct.value.imageUri
-        _addProduct.update {
-            it.copy(
-                name = name, description = description, price = price,
-                nameError = nameError, priceError = priceError,
-                canSubmit = nameError == null && priceError == null && currentImageUri != null && !it.isSaving
-            )
-        }
-    }
-    fun onImageSelected(uri: Uri?) { // Para AddProduct
-        val nameError = _addProduct.value.nameError
-        val priceError = _addProduct.value.priceError
-        _addProduct.update {
-            it.copy(
-                imageUri = uri,
-                imageError = if (uri == null) "Debe seleccionar una imagen" else null,
-                canSubmit = nameError == null && priceError == null && uri != null && !it.isSaving
-            )
-        }
-    }
-    fun saveProduct(appContext: Context) {
-        val s = _addProduct.value
-        if (!s.canSubmit || s.isSaving) return
-        if (s.imageUri == null) {
-            _addProduct.update { it.copy(imageError = "Debe seleccionar una imagen", isSaving = false) }
-            return
-        }
-        _addProduct.update { it.copy(isSaving = true, errorMsg = null) }
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val priceInt = s.price.toInt()
-                val finalImageName = ImageStorageHelper.saveImageToInternalStorage(appContext, s.imageUri)
-                val newProduct = ProductEntity(
-                    name = s.name.trim(), description = s.description.trim(), price = priceInt,
-                    imagePath = finalImageName, category = "otros"
+            val result = userRepository.updateProfile(req)
+            _profile.update {
+                it.copy(
+                    isLoading = false,
+                    updateSuccess = result.isSuccess,
+                    isEditing = !result.isSuccess,
+                    errorMsg = if(result.isSuccess) null else result.exceptionOrNull()?.message ?: "Error al actualizar"
                 )
-                productRepository.insert(newProduct)
-                withContext(Dispatchers.Main) {
-                    _addProduct.update { it.copy(isSaving = false, saveSuccess = true) }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _addProduct.update { it.copy(isSaving = false, errorMsg = e.message ?: "Error al guardar") }
-                }
             }
-        }
-    }
-    fun clearAddProductState() { _addProduct.update { AddProductUiState() } }
-    fun createTempImageUri(): Uri {
-        val context = getApplication<Application>().applicationContext
-        val imageDir = File(context.cacheDir, "images").apply { mkdirs() }
-        val tempFile = File.createTempFile("product_${System.currentTimeMillis()}", ".jpg", imageDir)
-        val authority = "${context.packageName}.fileprovider"
-        return FileProvider.getUriForFile(context, authority, tempFile)
-    }
-
-
-    // --- LÓGICA DE AddCuadro ---
-    fun onAddCuadroChange(
-        title: String = _addCuadro.value.title,
-        description: String = _addCuadro.value.description,
-        price: String = _addCuadro.value.price,
-        size: String = _addCuadro.value.size,
-        material: String = _addCuadro.value.material,
-        category: String = _addCuadro.value.category,
-        artist: String? = _addCuadro.value.artist
-    ) {
-        val titleError = if (title.isBlank()) "El título es obligatorio" else null
-        val priceError = when {
-            price.isBlank() -> "El precio es obligatorio"
-            !price.all { it.isDigit() } -> "Solo números"
-            price.length > 6 -> "Máximo 6 dígitos"
-            price.toIntOrNull() == null -> "Precio inválido"
-            else -> null // Sin error
-        }
-        val currentImageUri = _addCuadro.value.imageUri
-        _addCuadro.update {
-            it.copy(
-                title = title, description = description, price = price,
-                size = size, material = material, category = category, artist = artist,
-                titleError = titleError, priceError = priceError,
-                canSubmit = titleError == null && priceError == null && currentImageUri != null && !it.isSaving
-            )
-        }
-    }
-    fun onCuadroImageSelected(uri: Uri?) { // Para AddCuadro
-        val titleError = _addCuadro.value.titleError
-        val priceError = _addCuadro.value.priceError
-        _addCuadro.update {
-            it.copy(
-                imageUri = uri,
-                imageError = if (uri == null) "Debe seleccionar una imagen" else null,
-                canSubmit = titleError == null && priceError == null && uri != null && !it.isSaving
-            )
-        }
-    }
-    fun saveCuadro(appContext: Context) {
-        val s = _addCuadro.value
-        if (!s.canSubmit || s.isSaving) return
-        if (s.imageUri == null) {
-            _addCuadro.update { it.copy(imageError = "Debe seleccionar una imagen", isSaving = false) }
-            return
-        }
-        _addCuadro.update { it.copy(isSaving = true, errorMsg = null) }
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val priceInt = s.price.toInt()
-                val savedName = ImageStorageHelper.saveImageToInternalStorage(appContext, s.imageUri)
-                val entity = CuadroEntity(
-                    title = s.title.trim(), description = s.description.trim(), price = priceInt,
-                    size = s.size.trim().ifBlank { "" }, material = s.material.trim().ifBlank { "" },
-                    category = s.category.trim().ifBlank { "otros" }, imagePath = savedName,
-                    isCustom = false, artist = s.artist?.trim()?.ifBlank { null }
-                )
-                cuadroRepository.insert(entity)
-                withContext(Dispatchers.Main) {
-                    _addCuadro.update { it.copy(isSaving = false, saveSuccess = true) }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    _addCuadro.update { it.copy(isSaving = false, errorMsg = e.message ?: "Error al guardar") }
-                }
-            }
-        }
-    }
-    fun clearAddCuadroState() { _addCuadro.update { AddCuadroUiState() } }
-
-
-    // --- Lógica Admin (Eliminar, Cambiar Imagen) ---
-    fun deleteProduct(product: ProductEntity) { viewModelScope.launch { productRepository.delete(product) } }
-    fun deleteCuadro(cuadro: CuadroEntity) { viewModelScope.launch { cuadroRepository.delete(cuadro) } }
-    fun updateProductImage(appContext: Context, productId: Long, newImageUri: Uri, onDone: (Boolean, String?) -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val product = productRepository.getProductById(productId)
-                    ?: throw NoSuchElementException("Producto no encontrado")
-                val savedPath = ImageStorageHelper.saveImageToInternalStorage(appContext, newImageUri)
-                productRepository.update(product.copy(imagePath = savedPath))
-                withContext(Dispatchers.Main) { onDone(true, null) }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) { onDone(false, e.message ?: "Error al actualizar imagen") }
-            }
+            if (result.isSuccess) loadUserProfile()
         }
     }
 
-
-    // --- Filtros ---
-    fun setProductFilter(category: String) { _productFilter.value = category }
-    fun setCuadroFilter(category: String) { _cuadroFilter.value = category }
-
-    // --- Carrito ---
-    fun addProductToCart(p: ProductEntity) {
-        viewModelScope.launch {
-            cartRepository.addOrIncrement("product", p.id, p.name, p.price, p.imagePath)
-        }
-    }
-    fun addCuadroToCart(c: CuadroEntity) {
-        viewModelScope.launch {
-            cartRepository.addOrIncrement("cuadro", c.id, c.title, c.price, c.imagePath)
-        }
-    }
-    fun updateCartQuantity(item: CartItemEntity, newQty: Int) {
-        viewModelScope.launch { cartRepository.updateQuantity(item, newQty) }
-    }
-    fun removeFromCart(item: CartItemEntity) {
-        viewModelScope.launch { cartRepository.remove(item) }
-    }
+    // --- CARRITO ---
+    fun addProductToCart(p: Product) { viewModelScope.launch { cartRepository.addOrIncrement("product", p.id.toLong(), p.name, p.price, p.imageUrl) } }
+    fun addCuadroToCart(c: Cuadro) { viewModelScope.launch { cartRepository.addOrIncrement("cuadro", c.id.toLong(), c.title, c.price, c.imageUrl) } }
+    fun updateCartQuantity(i: CartItemEntity, q: Int) { viewModelScope.launch { cartRepository.updateQuantity(i, q) } }
+    fun removeFromCart(i: CartItemEntity) { viewModelScope.launch { cartRepository.remove(i) } }
     fun clearCart() { viewModelScope.launch { cartRepository.clear() } }
 
-    // --- Notificación de Compra ---
-    fun showPurchaseNotification() {
+    // --- PEDIDOS (CORREGIDO) ---
+    fun recordOrder(items: List<CartItemEntity>, total: Int) {
+        if (orderRepository == null) return
+        viewModelScope.launch {
+            // CORRECCIÓN 2: Usar email real para el pedido
+            val email = userPreferences.getEmail()
+
+            if (email.isNullOrBlank()) {
+                // Si no hay email, no podemos crear el pedido.
+                // Aquí podrías mostrar un error o redirigir al login.
+                return@launch
+            }
+
+            val detalles = items.map { OrderDetail(it.refId, it.name, it.quantity, it.price.toDouble()) }
+            val res = orderRepository.createOrder(email, OrderRequest(detalles))
+            if (res.isSuccess) {
+                clearCart()
+                fetchOrders()
+                showPurchaseNotification()
+            }
+        }
+    }
+
+    private fun showPurchaseNotification() {
         val context = getApplication<Application>().applicationContext
-        if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
-        val builder = NotificationCompat.Builder(context, "purchase_notifications") // Usa el ID del canal
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
+        }
+        val builder = NotificationCompat.Builder(context, "purchase_notifications")
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("¡Compra Exitosa!")
             .setContentText("Tu pedido ha sido registrado.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
-        with(NotificationManagerCompat.from(context)) {
-            notify(System.currentTimeMillis().toInt(), builder.build()) // Usa un ID único (ej: timestamp)
-        }
+        with(NotificationManagerCompat.from(context)) { notify(System.currentTimeMillis().toInt(), builder.build()) }
     }
 
-    // --- Preferencias ---
-    suspend fun setDarkMode(enabled: Boolean) { userPreferences.setDarkMode(enabled) }
-    suspend fun setAvatarType(type: String) { userPreferences.setAvatarType(type) }
-    suspend fun setThemeMode(mode: String){ userPreferences.setThemeMode(mode) }
-    suspend fun setAccentColor(hex: String){ userPreferences.setAccentColor(hex) }
-    suspend fun setFontScale(scale: Float){ userPreferences.setFontScale(scale) }
-    suspend fun setNotifOffers(enabled: Boolean){ userPreferences.setNotifOffers(enabled) }
-    suspend fun setNotifTracking(enabled: Boolean){ userPreferences.setNotifTracking(enabled) }
-    suspend fun setNotifCart(enabled: Boolean){ userPreferences.setNotifCart(enabled) }
-    suspend fun setLanguage(code: String){ userPreferences.setLanguage(code) }
+    // --- CONTACTO ---
+    fun sendContactMessage(n: String, e: String, m: String, res: (Boolean) -> Unit) {
+        viewModelScope.launch { res(contactRepository.sendMessage(n, e, m).isSuccess) }
+    }
 
-    // --- Historial de Compras ---
-    fun recordOrder(items: List<CartItemEntity>, total: Int) {
-        val repo = orderRepository ?: return
+    // --- ADMIN (CREAR) ---
+    fun onAddProductChange(name: String? = null, description: String? = null, price: String? = null) {
+        _addProduct.update { it.copy(name = name ?: it.name, description = description ?: it.description, price = price ?: it.price, canSubmit = true) }
+    }
+
+    fun onAddProductCategoryChange(categoryId: Long) {
+        _addProduct.update { it.copy(categoryId = categoryId) }
+    }
+
+    fun onImageSelected(uri: Uri?) { _addProduct.update { it.copy(imageUri = uri) } }
+
+    fun saveProduct(ctx: Context) {
+        val s = _addProduct.value
+        _addProduct.update { it.copy(isSaving = true) }
         viewModelScope.launch(Dispatchers.IO) {
-            val summary = items.joinToString("\n") { "- ${it.name} x${it.quantity} = ${formatPriceInternal(it.price * it.quantity)}" }
-            repo.insert(OrderEntity(dateMillis = System.currentTimeMillis(), itemsText = summary, total = total))
-        }
-    }
-    // Función interna para formatear precio
-    private fun formatPriceInternal(value: Int): String {
-        return try {
-            // Intenta usar NumberFormat para formato localizado con puntos
-            val format = NumberFormat.getNumberInstance(Locale("es", "CL"))
-            "$ ${format.format(value)}"
-        } catch (e: Exception) {
-            "$ $value" // Fallback simple
-        }
-    }
+            val imageString = s.imageUri?.toString() ?: ""
 
-    // --- Funciones de validación ---
-    private fun validatePrice(price: String): String? {
-        if (price.isBlank()) return "El precio es obligatorio"
-        if (!price.all { it.isDigit() }) return "Solo números"
-        if (price.length > 9) return "Máximo 9 dígitos"
-        try {
-            if (price.length == 9 && price > Int.MAX_VALUE.toString().take(9)) {
-                return "Precio demasiado grande"
+            val req = CreateProductRequest(s.name, s.description, s.price.toDoubleOrNull()?:0.0, 10, imageString, CategoryIdRequest(s.categoryId))
+//            val ok = productRepository.createProduct(req)
+            val ok = false
+            withContext(Dispatchers.Main) {
+                _addProduct.update { it.copy(isSaving = false, saveSuccess = ok) }
+                if (ok) fetchCatalog() else Toast.makeText(ctx, "Error al crear", Toast.LENGTH_SHORT).show()
             }
-            price.toInt()
-        } catch (e: NumberFormatException) {
-            return "Precio inválido o demasiado grande"
         }
-        return null
+    }
+    fun clearAddProductState() { _addProduct.value = AddProductUiState(categoryId = ID_DEFECTO_MOLDURAS) }
+
+    fun onAddCuadroChange(title: String?=null, description: String?=null, price: String?=null, size: String?=null, material: String?=null, category: String?=null, artist: String?=null) {
+        _addCuadro.update { it.copy(title=title?:it.title, description=description?:it.description, price=price?:it.price, size=size?:it.size, material=material?:it.material, category=category?:it.category, artist=artist?:it.artist, canSubmit=true) }
+    }
+    fun onCuadroImageSelected(uri: Uri?) { _addCuadro.update { it.copy(imageUri = uri) } }
+
+    fun saveCuadro(ctx: Context) {
+        val s = _addCuadro.value
+        _addCuadro.update { it.copy(isSaving = true) }
+        viewModelScope.launch(Dispatchers.IO) {
+            val desc = "${s.description} | ${s.size} | ${s.material}"
+            val imageString = s.imageUri?.toString() ?: ""
+
+            val req = CreateProductRequest(s.title, desc, s.price.toDoubleOrNull()?:0.0, 5, imageString, CategoryIdRequest(ID_CATEGORIA_CUADROS))
+//            val ok = productRepository.createProduct(req)
+            val ok = false
+            withContext(Dispatchers.Main) {
+                _addCuadro.update { it.copy(isSaving = false, saveSuccess = ok) }
+                if (ok) fetchCatalog() else Toast.makeText(ctx, "Error al crear", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+    fun clearAddCuadroState() { _addCuadro.value = AddCuadroUiState() }
+
+    // --- BORRAR ---
+    fun deleteProduct(p: Product) {
+        viewModelScope.launch(Dispatchers.IO) {
+//            if (productRepository.deleteProduct(p.id.toString())) fetchCatalog()
+        }
     }
 
+    fun deleteCuadro(c: Cuadro) {
+        viewModelScope.launch(Dispatchers.IO) {
+//            if (productRepository.deleteProduct(c.id.toString())) fetchCatalog()
+        }
+    }
+
+    // --- OTROS Y LOGOUT ---
+    fun logout() {
+        viewModelScope.launch {
+            userRepository.logout()
+            _isAdminSession.value = false
+            // CORRECCIÓN 3: Limpiar datos al salir
+            _orders.value = emptyList()
+            _profile.value = ProfileUiState()
+        }
+    }
+
+    fun clearLoginResult() { _login.value = LoginUiState() }
+    fun clearRegisterResult() { _register.value = RegisterUiState() }
+
+    fun createTempImageUri(): Uri {
+        val context = getApplication<Application>().applicationContext
+        val imageDir = File(context.cacheDir, "images").apply { mkdirs() }
+        val tempFile = File.createTempFile("product_${System.currentTimeMillis()}", ".jpg", imageDir)
+        return FileProvider.getUriForFile(context, "com.example.legacyframeapp.fileprovider", tempFile)
+    }
+
+    fun updateProductImage(ctx: Context, id: String, uri: Uri, onDone: (Boolean, String?) -> Unit) { onDone(true, null) }
+
+    suspend fun setThemeMode(m: String) = userPreferences.setThemeMode(m)
+    suspend fun setAccentColor(c: String) = userPreferences.setAccentColor(c)
+    suspend fun setFontScale(s: Float) = userPreferences.setFontScale(s)
+
+    suspend fun setNotifOffers(b: Boolean) = userPreferences.setNotifOffers(b)
+    suspend fun setNotifTracking(b: Boolean) = userPreferences.setNotifTracking(b)
+    suspend fun setNotifCart(b: Boolean) = userPreferences.setNotifCart(b)
 }
