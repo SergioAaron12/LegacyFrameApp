@@ -26,20 +26,13 @@ class ProductRepositoryTest {
 
     @Before
     fun setup() {
-        // --- MOCKEO DE RETROFIT ---
-        // Simulamos el objeto Singleton para que devuelva nuestro servicio falso
-        mockkObject(RetrofitClient)
-        coEvery { RetrofitClient.productService } returns apiServiceMock
-
-        // --- SOLUCIÓN AL ERROR "Method e not mocked" ---
-        // Simulamos la clase estática Log de Android
+        // Simulamos la clase estática Log de Android (evitar logs durante tests)
         mockkStatic(android.util.Log::class)
-        // Le decimos que devuelva 0 cuando se llame a cualquier Log.e
         every { android.util.Log.e(any(), any()) } returns 0
         every { android.util.Log.e(any(), any(), any()) } returns 0
 
-        // Inicializamos el repositorio que vamos a probar
-        repository = ProductRepository()
+        // Inicializamos el repositorio con el servicio mock
+        repository = ProductRepository(apiServiceMock)
     }
 
     @After

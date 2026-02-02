@@ -23,6 +23,8 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import retrofit2.Response
+import com.example.legacyframeapp.data.remote.RetrofitClient
+import com.example.legacyframeapp.domain.repository.CuadroRepository
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AuthViewModelTest {
@@ -59,14 +61,15 @@ class AuthViewModelTest {
         coEvery { userPrefs.notifOffers } returns flowOf(true)
         coEvery { userPrefs.notifTracking } returns flowOf(true)
         coEvery { userPrefs.notifCart } returns flowOf(true)
-        coEvery { userPrefs.language } returns flowOf("es")
-        coEvery { userPrefs.avatarType } returns flowOf("male")
 
         // 3. Mockear Repositorios llamados al iniciar
         coEvery { productRepo.getProducts() } returns emptyList()
         coEvery { cartRepo.items() } returns flowOf(emptyList())
         coEvery { cartRepo.total() } returns flowOf(0)
         coEvery { cartRepo.count() } returns flowOf(0)
+
+        // Mockear catálogo de cuadros (getCuadros) llamado en init
+        coEvery { cuadroRepo.getCuadros() } returns emptyList()
 
         // --- CORRECCIÓN AQUÍ ---
         // Antes decía getAll() (que ya no existe), ahora usamos getMyOrders()
@@ -91,7 +94,7 @@ class AuthViewModelTest {
         // GIVEN
         val email = "test@duoc.cl"
         val pass = "123456"
-        coEvery { userRepo.login(email, pass) } returns Result.success(true)
+        coEvery { userRepo.login(email, pass) } returns Result.success("fake-token")
 
         // WHEN
         viewModel.onLoginEmailChange(email)

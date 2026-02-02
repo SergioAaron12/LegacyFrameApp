@@ -56,6 +56,8 @@ dependencies {
     implementation(libs.google.android.material)
     implementation(libs.androidx.compose.runtime.saveable)
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
