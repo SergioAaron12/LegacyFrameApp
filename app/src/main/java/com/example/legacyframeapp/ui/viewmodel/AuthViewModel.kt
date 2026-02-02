@@ -313,37 +313,61 @@ class AuthViewModel(
 
     fun onRegisterNombreChange(v: String) {
         val err = validateNameLettersOnly(v)
-        _register.update { s -> s.copy(nombre = v, nombreError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+        _register.update { s ->
+            val newState = s.copy(nombre = v, nombreError = err)
+            newState.copy(canSubmit = checkRegisterCanSubmit(newState))
+        }
     }
     fun onRegisterApellidoChange(v: String) {
         val err = if (v.isBlank()) null else validateNameLettersOnly(v)
-        _register.update { s -> s.copy(apellido = v, apellidoError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+        _register.update { s ->
+            val newState = s.copy(apellido = v, apellidoError = err)
+            newState.copy(canSubmit = checkRegisterCanSubmit(newState))
+        }
     }
     fun onRegisterRutChange(v: String) {
         val rutErr = validateRut(v)
         val dvErr = validateDv(_register.value.dv, v)
-        _register.update { s -> s.copy(rut = v, rutError = rutErr, dvError = dvErr).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+        _register.update { s ->
+            val newState = s.copy(rut = v, rutError = rutErr, dvError = dvErr)
+            newState.copy(canSubmit = checkRegisterCanSubmit(newState))
+        }
     }
     fun onRegisterDvChange(v: String) {
         val err = validateDv(v, _register.value.rut)
-        _register.update { s -> s.copy(dv = v, dvError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+        _register.update { s ->
+            val newState = s.copy(dv = v, dvError = err)
+            newState.copy(canSubmit = checkRegisterCanSubmit(newState))
+        }
     }
     fun onRegisterEmailChange(v: String) {
         val err = validateEmail(v)
-        _register.update { s -> s.copy(email = v, emailError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+        _register.update { s ->
+            val newState = s.copy(email = v, emailError = err)
+            newState.copy(canSubmit = checkRegisterCanSubmit(newState))
+        }
     }
     fun onRegisterPhoneChange(v: String) {
         val err = validatePhoneDigitsOnly(v)
-        _register.update { s -> s.copy(phone = v, phoneError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+        _register.update { s ->
+            val newState = s.copy(phone = v, phoneError = err)
+            newState.copy(canSubmit = checkRegisterCanSubmit(newState))
+        }
     }
     fun onRegisterPassChange(v: String) {
         val passErr = validateStrongPassword(v)
         val confErr = validateConfirm(v, _register.value.confirm)
-        _register.update { s -> s.copy(pass = v, passError = passErr, confirmError = confErr).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+        _register.update { s ->
+            val newState = s.copy(pass = v, passError = passErr, confirmError = confErr)
+            newState.copy(canSubmit = checkRegisterCanSubmit(newState))
+        }
     }
     fun onRegisterConfirmChange(v: String) {
         val err = validateConfirm(_register.value.pass, v)
-        _register.update { s -> s.copy(confirm = v, confirmError = err).apply { copy(canSubmit = checkRegisterCanSubmit(this)) } }
+        _register.update { s ->
+            val newState = s.copy(confirm = v, confirmError = err)
+            newState.copy(canSubmit = checkRegisterCanSubmit(newState))
+        }
     }
 
     private fun checkRegisterCanSubmit(s: RegisterUiState): Boolean {
@@ -353,6 +377,7 @@ class AuthViewModel(
                 s.passError == null && s.confirmError == null
         val fieldsFilled = s.nombre.isNotBlank() && s.rut.isNotBlank() && s.dv.isNotBlank() &&
                 s.email.isNotBlank() && s.phone.isNotBlank() && s.pass.isNotBlank() && s.confirm.isNotBlank()
+                // Apellido es opcional: no se requiere para habilitar el registro
         return noErrors && fieldsFilled
     }
 
